@@ -1,0 +1,450 @@
+{
+  "info": {
+    "_postman_id": "7aa6bf2c-0a02-4dbc-b507-c386c6becb03",
+    "name": "SkillMatch API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "43867640"
+  },
+  "item": [
+    {
+      "name": "add student",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"user_id\": 1,\r\n  \"full_name\": \"Sofya Roganskaya\",\r\n  \"university\": \"KBTU\",\r\n  \"major\": \"Information Systems\",\r\n  \"education\": \"Bachelor\",\r\n  \"experience_years\": 1.5\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/v1/students",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "v1",
+            "students"
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "add student",
+          "originalRequest": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"user_id\": 1,\r\n  \"full_name\": \"Sofya Roganskaya\",\r\n  \"university\": \"KBTU\",\r\n  \"major\": \"Information Systems\",\r\n  \"education\": \"Bachelor\",\r\n  \"experience_years\": 1.5\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/v1/students",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "v1",
+                "students"
+              ]
+            }
+          },
+          "status": "Created",
+          "code": 201,
+          "_postman_previewlanguage": null,
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json; charset=utf-8"
+            },
+            {
+              "key": "Date",
+              "value": "Fri, 02 Oct 2026 18:18:42 GMT"
+            },
+            {
+              "key": "Content-Length",
+              "value": "147"
+            }
+          ],
+          "cookie": [],
+          "body": "{\n    \"id\": 1,\n    \"user_id\": 1,\n    \"full_name\": \"Sofya Roganskaya\",\n    \"university\": \"KBTU\",\n    \"major\": \"Information Systems\",\n    \"education\": \"Bachelor\",\n    \"experience_years\": 1.5\n}"
+        }
+      ]
+    },
+    {
+      "name": "view student",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8080/api/v1/students/1",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "v1",
+            "students",
+            "1"
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "view student",
+          "originalRequest": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/v1/students/1",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "v1",
+                "students",
+                "1"
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": null,
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json; charset=utf-8"
+            },
+            {
+              "key": "Date",
+              "value": "Fri, 02 Oct 2026 18:19:54 GMT"
+            },
+            {
+              "key": "Content-Length",
+              "value": "147"
+            }
+          ],
+          "cookie": [],
+          "body": "{\n    \"id\": 1,\n    \"user_id\": 1,\n    \"full_name\": \"Sofya Roganskaya\",\n    \"university\": \"KBTU\",\n    \"major\": \"Information Systems\",\n    \"education\": \"Bachelor\",\n    \"experience_years\": 1.5\n}"
+        }
+      ]
+    },
+    {
+      "name": "change student info",
+      "request": {
+        "method": "PUT",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"full_name\": \"Sofya Roganskaya\",\r\n  \"university\": \"KBTU\",\r\n  \"major\": \"Information Systems\",\r\n  \"education\": \"Bachelor Student\",\r\n  \"experience_years\": 2\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/v1/students/1",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "v1",
+            "students",
+            "1"
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "change student info",
+          "originalRequest": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"full_name\": \"Sofya Roganskaya\",\r\n  \"university\": \"KBTU\",\r\n  \"major\": \"Information Systems\",\r\n  \"education\": \"Bachelor Student\",\r\n  \"experience_years\": 2\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/v1/students/1",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "v1",
+                "students",
+                "1"
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": null,
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json; charset=utf-8"
+            },
+            {
+              "key": "Date",
+              "value": "Fri, 02 Oct 2026 18:20:40 GMT"
+            },
+            {
+              "key": "Content-Length",
+              "value": "153"
+            }
+          ],
+          "cookie": [],
+          "body": "{\n    \"id\": 1,\n    \"user_id\": 1,\n    \"full_name\": \"Sofya Roganskaya\",\n    \"university\": \"KBTU\",\n    \"major\": \"Information Systems\",\n    \"education\": \"Bachelor Student\",\n    \"experience_years\": 2\n}"
+        }
+      ]
+    },
+    {
+      "name": "add skill to student",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"skill_id\": 3,\r\n  \"level\": \"ADVANCED\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/v1/students/1/skills",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "v1",
+            "students",
+            "1",
+            "skills"
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "add skill to student",
+          "originalRequest": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"skill_id\": 3,\r\n  \"level\": \"ADVANCED\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/v1/students/1/skills",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "v1",
+                "students",
+                "1",
+                "skills"
+              ]
+            }
+          },
+          "status": "Created",
+          "code": 201,
+          "_postman_previewlanguage": null,
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json; charset=utf-8"
+            },
+            {
+              "key": "Date",
+              "value": "Fri, 02 Oct 2026 18:22:23 GMT"
+            },
+            {
+              "key": "Content-Length",
+              "value": "38"
+            }
+          ],
+          "cookie": [],
+          "body": "{\n    \"message\": \"skill added successfully\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "view student skills",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8080/api/v1/students/1/skills",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "v1",
+            "students",
+            "1",
+            "skills"
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "view student skills",
+          "originalRequest": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/v1/students/1/skills",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "v1",
+                "students",
+                "1",
+                "skills"
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": null,
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json; charset=utf-8"
+            },
+            {
+              "key": "Date",
+              "value": "Fri, 02 Oct 2026 18:23:09 GMT"
+            },
+            {
+              "key": "Content-Length",
+              "value": "138"
+            }
+          ],
+          "cookie": [],
+          "body": "[\n    {\n        \"id\": 3,\n        \"name\": \"Git\",\n        \"level\": \"ADVANCED\"\n    },\n    {\n        \"id\": 1,\n        \"name\": \"Go\",\n        \"level\": \"INTERMEDIATE\"\n    },\n    {\n        \"id\": 2,\n        \"name\": \"PostgreSQL\",\n        \"level\": \"INTERMEDIATE\"\n    }\n]"
+        }
+      ]
+    },
+    {
+      "name": "view matching skills",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8080/api/v1/students/1/vacancies/1/match",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "v1",
+            "students",
+            "1",
+            "vacancies",
+            "1",
+            "match"
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "view matching skills",
+          "originalRequest": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/v1/students/1/vacancies/1/match",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "v1",
+                "students",
+                "1",
+                "vacancies",
+                "1",
+                "match"
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": null,
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json; charset=utf-8"
+            },
+            {
+              "key": "Date",
+              "value": "Fri, 02 Oct 2026 18:24:29 GMT"
+            },
+            {
+              "key": "Content-Length",
+              "value": "392"
+            }
+          ],
+          "cookie": [],
+          "body": "{\n    \"student_id\": 1,\n    \"vacancy_id\": 1,\n    \"match_score\": 75,\n    \"matched_skills\": [\n        {\n            \"id\": 3,\n            \"name\": \"Git\",\n            \"student_level\": \"ADVANCED\",\n            \"required_level\": \"BEGINNER\"\n        },\n        {\n            \"id\": 1,\n            \"name\": \"Go\",\n            \"student_level\": \"INTERMEDIATE\",\n            \"required_level\": \"INTERMEDIATE\"\n        },\n        {\n            \"id\": 2,\n            \"name\": \"PostgreSQL\",\n            \"student_level\": \"INTERMEDIATE\",\n            \"required_level\": \"INTERMEDIATE\"\n        }\n    ],\n    \"missing_skills\": [\n        {\n            \"id\": 4,\n            \"name\": \"Docker\",\n            \"required_level\": \"BEGINNER\"\n        }\n    ]\n}"
+        }
+      ]
+    }
+  ]
+}
