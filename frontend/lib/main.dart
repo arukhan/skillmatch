@@ -11,16 +11,20 @@ class SkillMatchApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'SkillMatch',
+      title: 'SkillMatch AI',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        primarySwatch: Colors.blue,
         useMaterial3: true,
+        scaffoldBackgroundColor: const Color(0xFFF8FAFC),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF7C3AED),
+          primary: const Color(0xFF7C3AED),
+        ),
       ),
       initialRoute: '/',
       routes: {
         '/': (context) => const LoginScreen(),
-        '/main': (context) => const MainScreen(), //экран с нижним меню
+        '/main': (context) => const MainScreen(),
         '/vacancy-detail': (context) => const VacancyDetailScreen(),
       },
     );
