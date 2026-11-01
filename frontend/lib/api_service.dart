@@ -3,7 +3,10 @@ import 'package:http/http.dart' as http;
 
 class ApiService {
   static String get baseUrl {
+    //1 это для андроид эмулятора, 2 это для веба
+    //return 'http://10.0.2.2:8080/api/v1';
     return 'http://localhost:8080/api/v1';
+
   }
 
   // Безопасный запрос профиля студента
