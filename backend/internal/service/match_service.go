@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"errors"
+	"math"
+	"strings"
 
 	"skillmatch-backend/internal/model"
 	"skillmatch-backend/internal/repository"
@@ -31,104 +33,107 @@ func NewMatchService(
 	}
 }
 
+func levelRank(level *string) int {
+	if level == nil {
+		return 2 // Intermediate по умолчанию
+	}
+	switch strings.ToLower(strings.TrimSpace(*level)) {
+	case "beginner":
+		return 1
+	case "intermediate":
+		return 2
+	case "advanced":
+		return 3
+	default:
+		return 2
+	}
+}
+
 func (s *matchService) GetMatch(
 	ctx context.Context,
 	studentID int64,
 	vacancyID int64,
 ) (*model.MatchResponse, error) {
-
 	if studentID <= 0 {
 		return nil, errors.New("invalid student id")
 	}
-
 	if vacancyID <= 0 {
 		return nil, errors.New("invalid vacancy id")
 	}
 
-	studentSkills, err := s.skillRepo.GetStudentSkills(
-		ctx,
-		studentID,
-	)
+	studentSkills, err := s.skillRepo.GetStudentSkills(ctx, studentID)
 	if err != nil {
 		return nil, err
 	}
 
-	vacancySkills, err := s.vacancyRepo.GetSkills(
-		ctx,
-		vacancyID,
-	)
+	vacancySkills, err := s.vacancyRepo.GetSkills(ctx, vacancyID)
 	if err != nil {
 		return nil, err
 	}
 
-	studentSkillMap := make(
-		map[int64]model.StudentSkillResponse,
-	)
-
+	// Индексируем навыки студента и по ID, и по имени в нижнем регистре
+	studentByID := make(map[int64]model.StudentSkillResponse)
+	studentByName := make(map[string]model.StudentSkillResponse)
 	for _, skill := range studentSkills {
-		studentSkillMap[skill.ID] = skill
+		studentByID[skill.ID] = skill
+		studentByName[strings.ToLower(strings.TrimSpace(skill.Name))] = skill
 	}
 
-	var matched []model.MatchSkill
-	var missing []model.MatchSkill
+	matched := make([]model.MatchSkill, 0)
+	missing := make([]model.MatchSkill, 0)
 
-	requiredCount := 0
-	matchedCount := 0
+	var totalWeight float64
+	var earnedScore float64
 
-	for _, vacancySkill := range vacancySkills {
+	for _, vs := range vacancySkills {
+		weight := 1.0
+		totalWeight += weight
 
-		if !vacancySkill.IsRequired {
-			continue
+		studentSkill, exists := studentByID[vs.ID]
+		if !exists {
+			studentSkill, exists = studentByName[strings.ToLower(strings.TrimSpace(vs.Name))]
 		}
 
-		requiredCount++
-
-		studentSkill, exists :=
-			studentSkillMap[vacancySkill.ID]
-
 		if exists {
+			sRank := levelRank(studentSkill.Level)
+			rRank := levelRank(vs.RequiredLevel)
 
-			matchedCount++
+			credit := 1.0
+			if sRank < rRank {
+				diff := rRank - sRank
+				if diff == 1 {
+					credit = 0.75
+				} else {
+					credit = 0.50
+				}
+			}
 
-			matched = append(
-				matched,
-				model.MatchSkill{
-					ID:            vacancySkill.ID,
-					Name:          vacancySkill.Name,
-					StudentLevel:  studentSkill.Level,
-					RequiredLevel: vacancySkill.RequiredLevel,
-				},
-			)
-
+			earnedScore += weight * credit
+			matched = append(matched, model.MatchSkill{
+				ID:            vs.ID,
+				Name:          vs.Name,
+				StudentLevel:  studentSkill.Level,
+				RequiredLevel: vs.RequiredLevel,
+			})
 		} else {
-
-			missing = append(
-				missing,
-				model.MatchSkill{
-					ID:            vacancySkill.ID,
-					Name:          vacancySkill.Name,
-					RequiredLevel: vacancySkill.RequiredLevel,
-				},
-			)
+			missing = append(missing, model.MatchSkill{
+				ID:            vs.ID,
+				Name:          vs.Name,
+				RequiredLevel: vs.RequiredLevel,
+			})
 		}
 	}
 
 	var score float64
-
-	if requiredCount > 0 {
-		score =
-			float64(matchedCount) /
-				float64(requiredCount) *
-				100
+	if totalWeight > 0 {
+		score = math.Round((earnedScore / totalWeight) * 100)
 	}
 
-	response := &model.MatchResponse{
+	return &model.MatchResponse{
 		StudentID:     studentID,
 		VacancyID:     vacancyID,
 		MatchScore:    score,
 		MatchedSkills: matched,
 		MissingSkills: missing,
-	}
-
-	return response, nil
+	}, nil
 }

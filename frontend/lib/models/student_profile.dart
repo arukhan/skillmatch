@@ -1,20 +1,26 @@
 class StudentProfile {
   final int id;
-  final int userId;
+  final int? userId;
   final String fullName;
   final String university;
   final String major;
-  final String education;
   final double experienceYears;
+  final String bio;
+  final String targetRole;
+  final String githubUrl;
+  final String linkedinUrl;
 
   const StudentProfile({
     required this.id,
-    required this.userId,
+    this.userId,
     required this.fullName,
     required this.university,
     required this.major,
-    required this.education,
     required this.experienceYears,
+    this.bio = '',
+    this.targetRole = 'Software Engineering Intern',
+    this.githubUrl = '',
+    this.linkedinUrl = '',
   });
 
   factory StudentProfile.fromJson(Map<String, dynamic> json) {
@@ -28,32 +34,41 @@ class StudentProfile {
 
     return StudentProfile(
       id: (json['id'] as num?)?.toInt() ?? 1,
-      userId: (json['user_id'] as num?)?.toInt() ?? 1,
+      userId: (json['user_id'] as num?)?.toInt(),
       fullName: json['full_name']?.toString() ?? 'Student',
-      university: json['university']?.toString() ??
-          'Kazakh-British Technical University',
+      university: json['university']?.toString() ?? 'KBTU',
       major: json['major']?.toString() ?? 'Information Systems',
-      education: json['education']?.toString() ?? 'Bachelor student',
       experienceYears: parsedExp,
+      bio: json['bio']?.toString() ?? '',
+      targetRole:
+          json['target_role']?.toString() ?? 'Software Engineering Intern',
+      githubUrl: json['github_url']?.toString() ?? '',
+      linkedinUrl: json['linkedin_url']?.toString() ?? '',
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'full_name': fullName,
-      'university': university,
-      'major': major,
-      'education': education,
-      'experience_years': experienceYears,
-    };
-  }
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        if (userId != null) 'user_id': userId,
+        'full_name': fullName,
+        'university': university,
+        'major': major,
+        'experience_years': experienceYears,
+        'bio': bio,
+        'target_role': targetRole,
+        'github_url': githubUrl,
+        'linkedin_url': linkedinUrl,
+      };
 
   StudentProfile copyWith({
     String? fullName,
     String? university,
     String? major,
-    String? education,
     double? experienceYears,
+    String? bio,
+    String? targetRole,
+    String? githubUrl,
+    String? linkedinUrl,
   }) {
     return StudentProfile(
       id: id,
@@ -61,8 +76,11 @@ class StudentProfile {
       fullName: fullName ?? this.fullName,
       university: university ?? this.university,
       major: major ?? this.major,
-      education: education ?? this.education,
       experienceYears: experienceYears ?? this.experienceYears,
+      bio: bio ?? this.bio,
+      targetRole: targetRole ?? this.targetRole,
+      githubUrl: githubUrl ?? this.githubUrl,
+      linkedinUrl: linkedinUrl ?? this.linkedinUrl,
     );
   }
 }
