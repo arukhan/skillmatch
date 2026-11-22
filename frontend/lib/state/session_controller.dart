@@ -14,7 +14,6 @@ class SessionController extends ChangeNotifier {
   static const _kCompanyTabKey = 'sm_company_tab';
   static const _kLastRouteKey = 'sm_last_route';
   static const _kActiveVacancyIdKey = 'sm_active_vacancy_id';
-  static const _kLanguagesKey = 'sm_student_languages';
 
   SharedPreferences? _prefs;
 
@@ -25,18 +24,7 @@ class SessionController extends ChangeNotifier {
   int? _activeVacancyId;
 
   List<SkillItem> _studentSkills = [];
-  List<LanguageItem> _studentLanguages = [
-    const LanguageItem(
-      languageName: 'English',
-      proficiencyLevel: 'B2 (Upper-Intermediate)',
-      verificationStatus: CertificateVerificationStatus.unverified,
-    ),
-    const LanguageItem(
-      languageName: 'Russian',
-      proficiencyLevel: 'C1 (Advanced)',
-      verificationStatus: CertificateVerificationStatus.unverified,
-    ),
-  ];
+  List<LanguageItem> _studentLanguages = [];
   final List<Vacancy> _localCompanyVacancies = [];
 
   AuthSession? get session => _session;
@@ -56,7 +44,6 @@ class SessionController extends ChangeNotifier {
   List<Vacancy> get localCompanyVacancies =>
       List.unmodifiable(_localCompanyVacancies);
 
-  /// Вызывается в main() до runApp(), чтобы восстановить состояние до первого кадра
   Future<void> init() async {
     try {
       _prefs = await SharedPreferences.getInstance();
@@ -72,21 +59,13 @@ class SessionController extends ChangeNotifier {
       _companyTabIndex = _prefs?.getInt(_kCompanyTabKey) ?? 0;
       _lastRoute = _prefs?.getString(_kLastRouteKey) ?? '/main';
       _activeVacancyId = _prefs?.getInt(_kActiveVacancyIdKey);
-
-      final rawLangs = _prefs?.getString(_kLanguagesKey);
-      if (rawLangs != null && rawLangs.isNotEmpty) {
-        final decoded = jsonDecode(rawLangs) as List;
-        _studentLanguages = decoded
-            .map((e) => LanguageItem.fromJson(Map<String, dynamic>.from(e)))
-            .toList();
-      }
-    } catch (_) {
-      // Если хранилище недоступно — работаем в памяти без падения
-    }
+    } catch (_) {}
   }
 
   void setSession(AuthSession newSession) {
     _session = newSession;
+    _studentSkills = [];
+    _studentLanguages = [];
     _studentTabIndex = 0;
     _companyTabIndex = 0;
     _lastRoute = '/main';
@@ -104,6 +83,7 @@ class SessionController extends ChangeNotifier {
   void logout() {
     _session = null;
     _studentSkills = [];
+    _studentLanguages = [];
     _studentTabIndex = 0;
     _companyTabIndex = 0;
     _lastRoute = '/login';
@@ -155,16 +135,8 @@ class SessionController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _persistLanguages() {
-    _prefs?.setString(
-      _kLanguagesKey,
-      jsonEncode(_studentLanguages.map((e) => e.toJson()).toList()),
-    );
-  }
-
   void setStudentLanguages(List<LanguageItem> languages) {
     _studentLanguages = languages;
-    _persistLanguages();
     notifyListeners();
   }
 
@@ -177,7 +149,6 @@ class SessionController extends ChangeNotifier {
     } else {
       _studentLanguages.add(item);
     }
-    _persistLanguages();
     notifyListeners();
   }
 
@@ -185,7 +156,6 @@ class SessionController extends ChangeNotifier {
     _studentLanguages.removeWhere(
       (l) => l.languageName.toLowerCase() == languageName.toLowerCase(),
     );
-    _persistLanguages();
     notifyListeners();
   }
 

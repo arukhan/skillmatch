@@ -5,19 +5,70 @@ import '../models/skill_item.dart';
 import '../models/student_profile.dart';
 import '../state/session_controller.dart';
 
+class StudentApplication {
+  final int id;
+  final int vacancyId;
+  final String title;
+  final String company;
+  final int matchScore;
+  final String status;
+  final String coverLetter;
+  final String companyFeedback;
+  final String appliedAt;
+  final String updatedAt;
+
+  const StudentApplication({
+    required this.id,
+    required this.vacancyId,
+    required this.title,
+    required this.company,
+    required this.matchScore,
+    required this.status,
+    this.coverLetter = '',
+    this.companyFeedback = '',
+    required this.appliedAt,
+    this.updatedAt = '',
+  });
+
+  factory StudentApplication.fromJson(Map<String, dynamic> json) {
+    return StudentApplication(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      vacancyId: (json['vacancy_id'] as num?)?.toInt() ?? 0,
+      title: json['title']?.toString() ?? 'Vacancy',
+      company: json['company']?.toString() ?? 'Company',
+      matchScore: (json['match_score'] as num?)?.toInt() ?? 0,
+      status: json['status']?.toString() ?? 'Applied',
+      coverLetter: json['cover_letter']?.toString() ?? '',
+      companyFeedback: json['company_feedback']?.toString() ?? '',
+      appliedAt: json['applied_at']?.toString() ?? '',
+      updatedAt: json['updated_at']?.toString() ?? '',
+    );
+  }
+}
+
 class StudentService {
   static Future<StudentProfile> fetchProfile(int studentId) async {
-    final response = await http.get(
-      Uri.parse('${ApiConfig.baseUrl}/students/$studentId'),
-    );
+    Object? lastError;
 
-    if (response.statusCode == 200) {
-      return StudentProfile.fromJson(
-        Map<String, dynamic>.from(jsonDecode(response.body)),
-      );
+    for (int attempt = 0; attempt < 2; attempt++) {
+      try {
+        final response = await http
+            .get(Uri.parse('${ApiConfig.baseUrl}/students/$studentId'))
+            .timeout(const Duration(seconds: 6));
+
+        if (response.statusCode == 200) {
+          return StudentProfile.fromJson(
+            Map<String, dynamic>.from(jsonDecode(response.body)),
+          );
+        }
+        lastError = 'HTTP ${response.statusCode}: ${response.body}';
+      } catch (e) {
+        lastError = e;
+      }
+      await Future.delayed(const Duration(milliseconds: 300));
     }
 
-    throw Exception('Failed to load profile (${response.statusCode})');
+    throw Exception('Failed to load profile ($lastError)');
   }
 
   static Future<bool> updateProfile(StudentProfile profile) async {
@@ -33,6 +84,22 @@ class StudentService {
     }
   }
 
+  static Future<List<SkillItem>> fetchSkillsCatalog({String query = ''}) async {
+    try {
+      final uri = Uri.parse('${ApiConfig.baseUrl}/skills').replace(
+        queryParameters: query.trim().isNotEmpty ? {'q': query.trim()} : null,
+      );
+      final response = await http.get(uri).timeout(const Duration(seconds: 5));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data is List) {
+          return data.map((e) => SkillItem.fromJson(e)).toList();
+        }
+      }
+    } catch (_) {}
+    return [];
+  }
+
   static Future<List<SkillItem>> fetchSkills(int studentId) async {
     final response = await http.get(
       Uri.parse('${ApiConfig.baseUrl}/students/$studentId/skills'),
@@ -41,23 +108,7 @@ class StudentService {
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       if (data is List) {
-        final previousSkills = SessionController.instance.studentSkills;
-        final items = data.map((e) {
-          final parsed = SkillItem.fromJson(e);
-          if (parsed.level == null || parsed.level!.isEmpty) {
-            final existing = previousSkills.where(
-              (old) => old.name.toLowerCase() == parsed.name.toLowerCase(),
-            );
-            if (existing.isNotEmpty && existing.first.level != null) {
-              return SkillItem(
-                name: parsed.name,
-                level: existing.first.level,
-              );
-            }
-          }
-          return parsed;
-        }).toList();
-
+        final items = data.map((e) => SkillItem.fromJson(e)).toList();
         SessionController.instance.setStudentSkills(items);
         return items;
       }
@@ -101,7 +152,7 @@ class StudentService {
     try {
       final response = await http
           .get(Uri.parse('${ApiConfig.baseUrl}/students/$studentId/languages'))
-          .timeout(const Duration(seconds: 2));
+          .timeout(const Duration(seconds: 4));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data is List) {
@@ -116,25 +167,54 @@ class StudentService {
     return SessionController.instance.studentLanguages;
   }
 
-  static Future<void> saveLanguage(int studentId, LanguageItem item) async {
-    SessionController.instance.upsertLanguage(item);
+  static Future<bool> saveLanguage(int studentId, LanguageItem item) async {
     try {
-      await http
+      final response = await http
           .post(
             Uri.parse('${ApiConfig.baseUrl}/students/$studentId/languages'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode(item.toJson()),
           )
-          .timeout(const Duration(seconds: 2));
+          .timeout(const Duration(seconds: 4));
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        await fetchLanguages(studentId);
+        return true;
+      }
     } catch (_) {}
+    return false;
   }
 
-  static Future<void> deleteLanguage(int studentId, String languageName) async {
-    SessionController.instance.removeLanguage(languageName);
+  static Future<bool> deleteLanguage(int studentId, String languageName) async {
     try {
       final uri = Uri.parse('${ApiConfig.baseUrl}/students/$studentId/languages')
           .replace(queryParameters: {'language': languageName});
-      await http.delete(uri).timeout(const Duration(seconds: 2));
+      final response = await http.delete(uri).timeout(const Duration(seconds: 4));
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        await fetchLanguages(studentId);
+        return true;
+      }
     } catch (_) {}
+    return false;
+  }
+
+  static Future<List<StudentApplication>> fetchApplications(
+      int studentId) async {
+    try {
+      final response = await http
+          .get(
+            Uri.parse('${ApiConfig.baseUrl}/students/$studentId/applications'),
+          )
+          .timeout(const Duration(seconds: 4));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data is List) {
+          return data
+              .map((e) =>
+                  StudentApplication.fromJson(Map<String, dynamic>.from(e)))
+              .toList();
+        }
+      }
+    } catch (_) {}
+    return [];
   }
 }

@@ -1,30 +1,50 @@
 class Vacancy {
   final int id;
-  final int? companyId;
+  final int companyId;
   final String companyName;
   final String title;
   final String description;
   final double experienceRequired;
   final String employmentType;
+  final String workFormat;
   final String location;
+  final String salaryRange;
+  final bool isActive;
+  final int applicantsCount;
+  final int newApplicantsCount;
+  final String appliedStatus;
+  final String companyFeedback;
   final List<String> skills;
-  final double? matchScore;
+  final int matchScore;
+  final List<String> matchedSkills;
+  final List<String> missingSkills;
 
   const Vacancy({
     required this.id,
-    this.companyId,
+    this.companyId = 1,
     required this.companyName,
     required this.title,
     required this.description,
     required this.experienceRequired,
     required this.employmentType,
+    this.workFormat = 'Hybrid',
     required this.location,
+    this.salaryRange = '',
+    this.isActive = true,
+    this.applicantsCount = 0,
+    this.newApplicantsCount = 0,
+    this.appliedStatus = '',
+    this.companyFeedback = '',
     required this.skills,
-    this.matchScore,
+    this.matchScore = 0,
+    this.matchedSkills = const [],
+    this.missingSkills = const [],
   });
 
+  bool get hasApplied =>
+      appliedStatus.isNotEmpty && appliedStatus != 'Withdrawn';
+
   factory Vacancy.fromJson(Map<String, dynamic> json) {
-    final rawSkills = json['skills'] as List? ?? [];
     final rawExp = json['experience_required'];
     double parsedExp = 0.0;
     if (rawExp is num) {
@@ -33,32 +53,33 @@ class Vacancy {
       parsedExp = double.tryParse(rawExp) ?? 0.0;
     }
 
+    List<String> parseStringList(dynamic raw) {
+      if (raw is List) {
+        return raw.map((e) => e.toString()).toList();
+      }
+      return [];
+    }
+
     return Vacancy(
       id: (json['id'] as num?)?.toInt() ?? 0,
-      companyId: (json['company_id'] as num?)?.toInt(),
+      companyId: (json['company_id'] as num?)?.toInt() ?? 1,
       companyName: json['company_name']?.toString() ?? 'Company',
-      title: json['title']?.toString() ?? 'Untitled Vacancy',
+      title: json['title']?.toString() ?? 'Vacancy',
       description: json['description']?.toString() ?? '',
       experienceRequired: parsedExp,
       employmentType: json['employment_type']?.toString() ?? 'Internship',
+      workFormat: json['work_format']?.toString() ?? 'Hybrid',
       location: json['location']?.toString() ?? 'Almaty',
-      skills: rawSkills.map((e) => e.toString()).toList(),
-      matchScore: (json['match_score'] as num?)?.toDouble(),
-    );
-  }
-
-  Vacancy copyWith({double? matchScore}) {
-    return Vacancy(
-      id: id,
-      companyId: companyId,
-      companyName: companyName,
-      title: title,
-      description: description,
-      experienceRequired: experienceRequired,
-      employmentType: employmentType,
-      location: location,
-      skills: skills,
-      matchScore: matchScore ?? this.matchScore,
+      salaryRange: json['salary_range']?.toString() ?? '',
+      isActive: json['is_active'] is bool ? json['is_active'] as bool : true,
+      applicantsCount: (json['applicants_count'] as num?)?.toInt() ?? 0,
+      newApplicantsCount: (json['new_applicants_count'] as num?)?.toInt() ?? 0,
+      appliedStatus: json['applied_status']?.toString() ?? '',
+      companyFeedback: json['company_feedback']?.toString() ?? '',
+      skills: parseStringList(json['skills']),
+      matchScore: (json['match_score'] as num?)?.toInt() ?? 0,
+      matchedSkills: parseStringList(json['matched_skills']),
+      missingSkills: parseStringList(json['missing_skills']),
     );
   }
 }

@@ -7,11 +7,15 @@ class SkillLevels {
 }
 
 class SkillItem {
+  final int? id;
   final String name;
+  final String? category;
   final String? level;
 
   const SkillItem({
+    this.id,
     required this.name,
+    this.category,
     this.level,
   });
 
@@ -21,7 +25,9 @@ class SkillItem {
     }
     if (raw is Map<String, dynamic>) {
       return SkillItem(
+        id: (raw['id'] as num?)?.toInt(),
         name: raw['name']?.toString() ?? 'Skill',
+        category: raw['category']?.toString(),
         level: raw['level']?.toString(),
       );
     }
@@ -29,7 +35,9 @@ class SkillItem {
   }
 
   Map<String, dynamic> toJson() => {
+        if (id != null) 'id': id,
         'name': name,
+        if (category != null) 'category': category,
         if (level != null && level!.isNotEmpty) 'level': level,
       };
 }
@@ -46,62 +54,24 @@ class LanguageLevels {
   ];
 
   static const List<String> cefrLevels = [
-    'A1 (Beginner)',
-    'A2 (Elementary)',
-    'B1 (Intermediate)',
-    'B2 (Upper-Intermediate)',
-    'C1 (Advanced)',
-    'C2 (Proficient)',
-    'Native',
+    'A1',
+    'A2',
+    'B1',
+    'B2',
+    'C1',
+    'C2',
   ];
-}
-
-enum CertificateVerificationStatus {
-  unverified,
-  pending,
-  verified,
-  rejected;
-
-  String get label {
-    switch (this) {
-      case CertificateVerificationStatus.unverified:
-        return 'No certificate';
-      case CertificateVerificationStatus.pending:
-        return 'Pending review';
-      case CertificateVerificationStatus.verified:
-        return 'Verified';
-      case CertificateVerificationStatus.rejected:
-        return 'Rejected';
-    }
-  }
-
-  static CertificateVerificationStatus fromApi(String? raw) {
-    switch (raw?.toUpperCase()) {
-      case 'PENDING':
-        return CertificateVerificationStatus.pending;
-      case 'VERIFIED':
-        return CertificateVerificationStatus.verified;
-      case 'REJECTED':
-        return CertificateVerificationStatus.rejected;
-      default:
-        return CertificateVerificationStatus.unverified;
-    }
-  }
 }
 
 class LanguageItem {
   final int? id;
   final String languageName;
   final String proficiencyLevel;
-  final String? certificateUrl;
-  final CertificateVerificationStatus verificationStatus;
 
   const LanguageItem({
     this.id,
     required this.languageName,
     required this.proficiencyLevel,
-    this.certificateUrl,
-    this.verificationStatus = CertificateVerificationStatus.unverified,
   });
 
   factory LanguageItem.fromJson(Map<String, dynamic> json) {
@@ -109,18 +79,13 @@ class LanguageItem {
       id: (json['id'] as num?)?.toInt(),
       languageName: json['language_name']?.toString() ?? 'English',
       proficiencyLevel:
-          json['proficiency_level']?.toString() ?? 'B2 (Upper-Intermediate)',
-      certificateUrl: json['certificate_url']?.toString(),
-      verificationStatus: CertificateVerificationStatus.fromApi(
-        json['verification_status']?.toString(),
-      ),
+          (json['cefr_level'] ?? json['proficiency_level'] ?? 'B2').toString(),
     );
   }
 
   Map<String, dynamic> toJson() => {
         'language_name': languageName,
+        'cefr_level': proficiencyLevel.split(' ').first,
         'proficiency_level': proficiencyLevel,
-        if (certificateUrl != null) 'certificate_url': certificateUrl,
-        'verification_status': verificationStatus.name.toUpperCase(),
       };
 }

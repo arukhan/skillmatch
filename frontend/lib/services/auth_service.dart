@@ -11,7 +11,36 @@ class AuthException implements Exception {
   String toString() => message;
 }
 
+class UserNotFoundException extends AuthException {
+  UserNotFoundException(super.message);
+}
+
 class AuthService {
+  static AuthSession _parseBackendSession(
+    Map<String, dynamic> data,
+    String fallbackEmail,
+    UserRole fallbackRole,
+  ) {
+    final rawRole =
+        (data['role'] ?? fallbackRole.apiValue).toString().toUpperCase();
+    final role = rawRole == 'COMPANY' ? UserRole.company : UserRole.student;
+    final userId = (data['user_id'] as num?)?.toInt() ?? 1;
+    final profileId = (data['profile_id'] as num?)?.toInt() ?? 1;
+    final displayName =
+        (data['name'] ?? data['full_name'] ?? fallbackEmail).toString();
+
+    return AuthSession(
+      token: data['token']?.toString() ?? 'session-$userId',
+      userId: userId,
+      email: (data['email'] ?? fallbackEmail).toString(),
+      role: role,
+      studentProfileId: role == UserRole.student ? profileId : null,
+      companyId: role == UserRole.company ? profileId : null,
+      displayName: displayName,
+      isDemoFallback: false,
+    );
+  }
+
   static Future<AuthSession> login({
     required String email,
     required String password,
@@ -22,11 +51,10 @@ class AuthService {
     if (trimmedEmail.isEmpty || !trimmedEmail.contains('@')) {
       throw AuthException('Please enter a valid email address.');
     }
-    if (password.trim().length < 4 || password.trim() == 'wrong') {
-      throw AuthException('Invalid email or password.');
+    if (password.trim().length < 4) {
+      throw AuthException('Password must be at least 4 characters.');
     }
 
-    // 1. Пробуем реальный эндпоинт авторизации (задача T9)
     try {
       final response = await http
           .post(
@@ -38,63 +66,44 @@ class AuthService {
               'role': expectedRole.apiValue,
             }),
           )
-          .timeout(const Duration(seconds: 4));
+          .timeout(const Duration(seconds: 6));
+
+      final body = response.body.isNotEmpty
+          ? Map<String, dynamic>.from(jsonDecode(response.body))
+          : <String, dynamic>{};
 
       if (response.statusCode == 200) {
-        final data = Map<String, dynamic>.from(jsonDecode(response.body));
-        final session = AuthSession.fromJson(data);
+        final session =
+            _parseBackendSession(body, trimmedEmail, expectedRole);
         if (session.role != expectedRole) {
           throw AuthException(
-            'This account is registered as ${session.role.label}. Switch the role tab above.',
+            'This account is registered as ${session.role.label}. Please switch the role tab above.',
           );
         }
         return session;
       }
 
-      if (response.statusCode == 401 || response.statusCode == 403) {
-        throw AuthException('Invalid credentials or wrong account role.');
+      if (response.statusCode == 404 || body['code'] == 'USER_NOT_FOUND') {
+        throw UserNotFoundException(
+          body['error']?.toString() ??
+              'Account not found. Please register first (Sign up).',
+        );
       }
+
+      if (response.statusCode == 401 || response.statusCode == 403) {
+        throw AuthException(
+          body['error']?.toString() ?? 'Incorrect password. Please try again.',
+        );
+      }
+
+      throw AuthException(
+        body['error']?.toString() ?? 'Server error (${response.statusCode})',
+      );
     } on AuthException {
       rethrow;
     } catch (_) {
-      // Если бэкенд авторизации ещё не запушен — переходим на фоллбэк
-    }
-
-    // 2. Временный фоллбэк для тестирования обеих ролей (US9)
-    if (expectedRole == UserRole.student) {
-      String resolvedName = 'Zhumabek Askerbekuly';
-      try {
-        final profileRes = await http
-            .get(Uri.parse('${ApiConfig.baseUrl}/students/1'))
-            .timeout(const Duration(seconds: 3));
-        if (profileRes.statusCode == 200) {
-          final profileJson = jsonDecode(profileRes.body);
-          if (profileJson['full_name'] != null) {
-            resolvedName = profileJson['full_name'].toString();
-          }
-        }
-      } catch (_) {}
-
-      return AuthSession(
-        token: 'demo-student-jwt',
-        userId: 1,
-        email: trimmedEmail,
-        role: UserRole.student,
-        studentProfileId: 1,
-        displayName: resolvedName,
-        isDemoFallback: true,
-      );
-    } else {
-      return AuthSession(
-        token: 'demo-company-jwt',
-        userId: 2,
-        email: trimmedEmail,
-        role: UserRole.company,
-        companyId: 1,
-        displayName: 'SkillMatch Partner Tech',
-        companyWebsite: 'https://skillmatch.kz',
-        companyDescription: 'Hiring talented junior developers and interns.',
-        isDemoFallback: true,
+      throw AuthException(
+        'Cannot connect to server. Check that Go backend is running.',
       );
     }
   }
@@ -119,61 +128,37 @@ class AuthService {
               'email': trimmedEmail,
               'password': password,
               'role': 'STUDENT',
-              'full_name': fullName.trim(),
+              'name': fullName.trim(),
               'university': university.trim(),
               'major': major.trim(),
               'education': education.trim(),
               'experience_years': experienceYears,
             }),
           )
-          .timeout(const Duration(seconds: 4));
+          .timeout(const Duration(seconds: 6));
+
+      final body = response.body.isNotEmpty
+          ? Map<String, dynamic>.from(jsonDecode(response.body))
+          : <String, dynamic>{};
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        return AuthSession.fromJson(
-          Map<String, dynamic>.from(jsonDecode(response.body)),
-        );
+        return _parseBackendSession(body, trimmedEmail, UserRole.student);
       }
       if (response.statusCode == 409) {
-        throw AuthException('User with this email already exists.');
+        throw AuthException(
+          'An account with this email already exists. Please sign in.',
+        );
       }
+      throw AuthException(
+        body['error']?.toString() ?? 'Registration failed (${response.statusCode})',
+      );
     } on AuthException {
       rethrow;
-    } catch (_) {}
-
-    int createdProfileId = 1;
-    try {
-      final studentRes = await http
-          .post(
-            Uri.parse('${ApiConfig.baseUrl}/students'),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({
-              'user_id': DateTime.now().millisecondsSinceEpoch % 100000,
-              'full_name': fullName.trim(),
-              'university': university.trim(),
-              'major': major.trim(),
-              'education': education.trim(),
-              'experience_years': experienceYears,
-            }),
-          )
-          .timeout(const Duration(seconds: 4));
-
-      if (studentRes.statusCode == 200 || studentRes.statusCode == 201) {
-        final body = jsonDecode(studentRes.body);
-        if (body is Map && body['id'] != null) {
-          createdProfileId = (body['id'] as num).toInt();
-        }
-      }
-    } catch (_) {}
-
-    return AuthSession(
-      token: 'demo-student-jwt',
-      userId: createdProfileId,
-      email: trimmedEmail,
-      role: UserRole.student,
-      studentProfileId: createdProfileId,
-      displayName: fullName.trim(),
-      isDemoFallback: true,
-    );
+    } catch (_) {
+      throw AuthException(
+        'Cannot connect to server. Check that Go backend is running.',
+      );
+    }
   }
 
   static Future<AuthSession> registerCompany({
@@ -199,25 +184,29 @@ class AuthService {
               'description': description.trim(),
             }),
           )
-          .timeout(const Duration(seconds: 4));
+          .timeout(const Duration(seconds: 6));
+
+      final body = response.body.isNotEmpty
+          ? Map<String, dynamic>.from(jsonDecode(response.body))
+          : <String, dynamic>{};
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        return AuthSession.fromJson(
-          Map<String, dynamic>.from(jsonDecode(response.body)),
+        return _parseBackendSession(body, trimmedEmail, UserRole.company);
+      }
+      if (response.statusCode == 409) {
+        throw AuthException(
+          'A company account with this email already exists. Please sign in.',
         );
       }
-    } catch (_) {}
-
-    return AuthSession(
-      token: 'demo-company-jwt',
-      userId: 2,
-      email: trimmedEmail,
-      role: UserRole.company,
-      companyId: 1,
-      displayName: companyName.trim(),
-      companyWebsite: website.trim(),
-      companyDescription: description.trim(),
-      isDemoFallback: true,
-    );
+      throw AuthException(
+        body['error']?.toString() ?? 'Registration failed (${response.statusCode})',
+      );
+    } on AuthException {
+      rethrow;
+    } catch (_) {
+      throw AuthException(
+        'Cannot connect to server. Check that Go backend is running.',
+      );
+    }
   }
 }
