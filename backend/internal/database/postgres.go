@@ -1,30 +1,24 @@
 package database
 
 import (
-	"errors"
 	"fmt"
 	"os"
-	"strings"
-	"time"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 )
 
 func Connect() (*sqlx.DB, error) {
-	dsn := strings.TrimSpace(os.Getenv("DATABASE_URL"))
-	if dsn == "" {
-		return nil, errors.New("DATABASE_URL is empty: check backend/.env file")
+	databaseURL := os.Getenv("DATABASE_URL")
+
+	if databaseURL == "" {
+		return nil, fmt.Errorf("DATABASE_URL is not set")
 	}
 
-	db, err := sqlx.Connect("postgres", dsn)
+	db, err := sqlx.Connect("postgres", databaseURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to Neon PostgreSQL: %w", err)
+		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
-
-	db.SetMaxOpenConns(10)
-	db.SetMaxIdleConns(2)
-	db.SetConnMaxLifetime(3 * time.Minute)
 
 	return db, nil
 }
