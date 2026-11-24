@@ -24,6 +24,7 @@ class AuthSession {
   final String displayName;
   final String? companyWebsite;
   final String? companyDescription;
+  final bool isAdmin;
   final bool isDemoFallback;
 
   const AuthSession({
@@ -36,6 +37,7 @@ class AuthSession {
     required this.displayName,
     this.companyWebsite,
     this.companyDescription,
+    this.isAdmin = false,
     this.isDemoFallback = false,
   });
 
@@ -56,6 +58,7 @@ class AuthSession {
           'SkillMatch User',
       companyWebsite: json['website']?.toString(),
       companyDescription: json['description']?.toString(),
+      isAdmin: json['is_admin'] == true,
       isDemoFallback: json['is_demo_fallback'] == true,
     );
   }
@@ -71,6 +74,7 @@ class AuthSession {
       'full_name': displayName,
       'website': companyWebsite,
       'description': companyDescription,
+      'is_admin': isAdmin,
       'is_demo_fallback': isDemoFallback,
     };
   }
