@@ -10,10 +10,14 @@ class EventItem {
   final String eventDate;
   final String location;
   final String workFormat;
+  final int capacity;
+  final String externalUrl;
   final String description;
   final List<String> tags;
   final int registeredCount;
   final bool isRegistered;
+  final bool isRecommended;
+  final List<String> matchedTags;
 
   const EventItem({
     required this.id,
@@ -23,11 +27,17 @@ class EventItem {
     required this.eventDate,
     required this.location,
     required this.workFormat,
+    this.capacity = 100,
+    this.externalUrl = '',
     required this.description,
     required this.tags,
     required this.registeredCount,
     required this.isRegistered,
+    this.isRecommended = false,
+    this.matchedTags = const [],
   });
+
+  bool get isFull => capacity > 0 && registeredCount >= capacity && !isRegistered;
 
   factory EventItem.fromJson(Map<String, dynamic> json) {
     final rawTags = json['tags']?.toString() ?? '';
@@ -37,6 +47,11 @@ class EventItem {
         .where((e) => e.isNotEmpty)
         .toList();
 
+    final rawMatched = json['matched_tags'];
+    final parsedMatched = rawMatched is List
+        ? rawMatched.map((e) => e.toString()).toList()
+        : <String>[];
+
     return EventItem(
       id: (json['id'] as num?)?.toInt() ?? 0,
       title: json['title']?.toString() ?? 'Tech Event',
@@ -45,10 +60,14 @@ class EventItem {
       eventDate: json['event_date']?.toString() ?? '',
       location: json['location']?.toString() ?? 'Almaty',
       workFormat: json['work_format']?.toString() ?? 'Offline',
+      capacity: (json['capacity'] as num?)?.toInt() ?? 100,
+      externalUrl: json['external_url']?.toString() ?? '',
       description: json['description']?.toString() ?? '',
       tags: parsedTags,
       registeredCount: (json['registered_count'] as num?)?.toInt() ?? 0,
       isRegistered: json['is_registered'] == true,
+      isRecommended: json['is_recommended'] == true,
+      matchedTags: parsedMatched,
     );
   }
 }
@@ -61,10 +80,12 @@ class CourseItem {
   final String level;
   final String duration;
   final bool isFree;
+  final String externalUrl;
   final String description;
   final String enrollmentStatus;
   final bool isRecommended;
   final String recommendationReason;
+  final int boostedVacanciesCount;
 
   const CourseItem({
     required this.id,
@@ -74,10 +95,12 @@ class CourseItem {
     required this.level,
     required this.duration,
     required this.isFree,
+    this.externalUrl = '',
     required this.description,
     required this.enrollmentStatus,
     required this.isRecommended,
     required this.recommendationReason,
+    this.boostedVacanciesCount = 0,
   });
 
   factory CourseItem.fromJson(Map<String, dynamic> json) {
@@ -89,12 +112,29 @@ class CourseItem {
       level: json['level']?.toString() ?? 'Intermediate',
       duration: json['duration']?.toString() ?? '',
       isFree: json['is_free'] != false,
+      externalUrl: json['external_url']?.toString() ?? '',
       description: json['description']?.toString() ?? '',
       enrollmentStatus: json['enrollment_status']?.toString() ?? '',
       isRecommended: json['is_recommended'] == true,
       recommendationReason: json['recommendation_reason']?.toString() ?? '',
+      boostedVacanciesCount:
+          (json['boosted_vacancies_count'] as num?)?.toInt() ?? 0,
     );
   }
+}
+
+class CourseCompletionResult {
+  final String status;
+  final String addedSkill;
+  final String addedLevel;
+  final int boostedVacancies;
+
+  const CourseCompletionResult({
+    required this.status,
+    required this.addedSkill,
+    required this.addedLevel,
+    required this.boostedVacancies,
+  });
 }
 
 class LearningService {
@@ -130,7 +170,8 @@ class LearningService {
       final data = jsonDecode(response.body);
       return data['registered'] == true;
     }
-    throw Exception('Failed to update registration');
+    final err = response.body.isNotEmpty ? jsonDecode(response.body) : {};
+    throw Exception(err['error']?.toString() ?? 'Failed to update registration');
   }
 
   static Future<List<CourseItem>> fetchCourses(int studentId) async {
@@ -149,7 +190,7 @@ class LearningService {
     throw Exception('Failed to load courses (${response.statusCode})');
   }
 
-  static Future<String> updateCourseStatus({
+  static Future<CourseCompletionResult> updateCourseStatus({
     required int courseId,
     required int studentProfileId,
     required String status,
@@ -167,7 +208,12 @@ class LearningService {
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      return data['added_skill']?.toString() ?? '';
+      return CourseCompletionResult(
+        status: data['status']?.toString() ?? status,
+        addedSkill: data['added_skill']?.toString() ?? '',
+        addedLevel: data['added_level']?.toString() ?? '',
+        boostedVacancies: (data['boosted_vacancies'] as num?)?.toInt() ?? 0,
+      );
     }
     throw Exception('Failed to update course status');
   }

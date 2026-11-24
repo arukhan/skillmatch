@@ -384,6 +384,34 @@ class _CompanyShellState extends State<CompanyShell> {
                         .toList(),
                   ),
                 ],
+                if (applicant.registeredEvents.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  const Text(
+                    'Community & Tech Events',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: applicant.registeredEvents
+                        .map(
+                          (ev) => Chip(
+                            avatar: const Icon(
+                              Icons.event_available,
+                              size: 15,
+                              color: AppTheme.brandPurple,
+                            ),
+                            label: Text(
+                              ev,
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                            backgroundColor: AppTheme.brandPurpleLight,
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ],
               ],
             ),
           ),
@@ -983,7 +1011,6 @@ class _CompanyShellState extends State<CompanyShell> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // ФИЛЬТР ПО ВАКАНСИИ И СТАТУСУ
                   FutureBuilder<List<Vacancy>>(
                     future: _futureVacancies,
                     builder: (context, vacSnap) {
@@ -1057,8 +1084,6 @@ class _CompanyShellState extends State<CompanyShell> {
                     },
                   ),
                   const SizedBox(height: 14),
-
-                  // СПИСОК КАНДИДАТОВ
                   FutureBuilder<List<CompanyApplicant>>(
                     future: _futureApplicants,
                     builder: (context, snapshot) {
@@ -1186,6 +1211,29 @@ class _CompanyShellState extends State<CompanyShell> {
                                       color: AppTheme.brandPurple,
                                     ),
                                   ),
+                                  if (app.registeredEvents.isNotEmpty) ...[
+                                    const SizedBox(height: 6),
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.event_available,
+                                          size: 14,
+                                          color: Colors.green,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Expanded(
+                                          child: Text(
+                                            'Active in ${app.registeredEvents.length} tech events (${app.registeredEvents.first})',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.green.shade800,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
                                   if (app.coverLetter.isNotEmpty) ...[
                                     const SizedBox(height: 8),
                                     Container(

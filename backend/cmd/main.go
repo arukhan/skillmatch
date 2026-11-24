@@ -64,7 +64,9 @@ type VacancyResponse struct {
 	IsActive           bool     `json:"is_active"`
 	ApplicantsCount    int      `json:"applicants_count"`
 	NewApplicantsCount int      `json:"new_applicants_count"`
+	ApplicationID      int64    `json:"application_id"`
 	AppliedStatus      string   `json:"applied_status"`
+	CoverLetter        string   `json:"cover_letter"`
 	CompanyFeedback    string   `json:"company_feedback"`
 	Skills             []string `json:"skills"`
 	MatchScore         int      `json:"match_score"`
@@ -133,34 +135,41 @@ type CompanyApplicantItem struct {
 	StudentLanguages []LanguageItem     `json:"student_languages"`
 	MatchedSkills    []string           `json:"matched_skills"`
 	MissingSkills    []string           `json:"missing_skills"`
+	RegisteredEvents []string           `json:"registered_events"`
 }
 
 type EventItem struct {
-	ID              int64  `json:"id"`
-	Title           string `json:"title"`
-	Organizer       string `json:"organizer"`
-	EventType       string `json:"event_type"`
-	EventDate       string `json:"event_date"`
-	Location        string `json:"location"`
-	WorkFormat      string `json:"work_format"`
-	Description     string `json:"description"`
-	Tags            string `json:"tags"`
-	RegisteredCount int    `json:"registered_count"`
-	IsRegistered    bool   `json:"is_registered"`
+	ID              int64    `json:"id"`
+	Title           string   `json:"title"`
+	Organizer       string   `json:"organizer"`
+	EventType       string   `json:"event_type"`
+	EventDate       string   `json:"event_date"`
+	Location        string   `json:"location"`
+	WorkFormat      string   `json:"work_format"`
+	Capacity        int      `json:"capacity"`
+	ExternalURL     string   `json:"external_url"`
+	Description     string   `json:"description"`
+	Tags            string   `json:"tags"`
+	RegisteredCount int      `json:"registered_count"`
+	IsRegistered    bool     `json:"is_registered"`
+	IsRecommended   bool     `json:"is_recommended"`
+	MatchedTags     []string `json:"matched_tags"`
 }
 
 type CourseItem struct {
-	ID                   int64  `json:"id"`
-	Title                string `json:"title"`
-	Provider             string `json:"provider"`
-	SkillName            string `json:"skill_name"`
-	Level                string `json:"level"`
-	Duration             string `json:"duration"`
-	IsFree               bool   `json:"is_free"`
-	Description          string `json:"description"`
-	EnrollmentStatus     string `json:"enrollment_status"`
-	IsRecommended        bool   `json:"is_recommended"`
-	RecommendationReason string `json:"recommendation_reason"`
+	ID                    int64  `json:"id"`
+	Title                 string `json:"title"`
+	Provider              string `json:"provider"`
+	SkillName             string `json:"skill_name"`
+	Level                 string `json:"level"`
+	Duration              string `json:"duration"`
+	IsFree                bool   `json:"is_free"`
+	ExternalURL           string `json:"external_url"`
+	Description           string `json:"description"`
+	EnrollmentStatus      string `json:"enrollment_status"`
+	IsRecommended         bool   `json:"is_recommended"`
+	RecommendationReason  string `json:"recommendation_reason"`
+	BoostedVacanciesCount int    `json:"boosted_vacancies_count"`
 }
 
 func skillWeight(level string) float64 {
@@ -205,9 +214,13 @@ func ensureSchemaAndSkills(db *sqlx.DB) {
 			event_date VARCHAR(100) NOT NULL,
 			location VARCHAR(150) DEFAULT 'Almaty',
 			work_format VARCHAR(50) DEFAULT 'Offline',
+			capacity INT DEFAULT 100,
+			external_url TEXT DEFAULT '',
 			description TEXT DEFAULT '',
 			tags VARCHAR(250) DEFAULT ''
 		)`,
+		`ALTER TABLE events ADD COLUMN IF NOT EXISTS capacity INT DEFAULT 100`,
+		`ALTER TABLE events ADD COLUMN IF NOT EXISTS external_url TEXT DEFAULT ''`,
 		`CREATE TABLE IF NOT EXISTS event_registrations (
 			id SERIAL PRIMARY KEY,
 			event_id INT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
@@ -223,8 +236,10 @@ func ensureSchemaAndSkills(db *sqlx.DB) {
 			level VARCHAR(50) DEFAULT 'Intermediate',
 			duration VARCHAR(60) DEFAULT '4 weeks',
 			is_free BOOLEAN DEFAULT TRUE,
+			external_url TEXT DEFAULT '',
 			description TEXT DEFAULT ''
 		)`,
+		`ALTER TABLE courses ADD COLUMN IF NOT EXISTS external_url TEXT DEFAULT ''`,
 		`CREATE TABLE IF NOT EXISTS student_courses (
 			id SERIAL PRIMARY KEY,
 			course_id INT NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
@@ -273,27 +288,221 @@ func ensureSchemaAndSkills(db *sqlx.DB) {
 	`
 	_, _ = db.Exec(seedSkillsSQL)
 
+	_, _ = db.Exec(`DELETE FROM events WHERE title IN (
+		'KBTU IT Career Fair & Fast-Track Interviews',
+		'Almaty Go & Cloud Native Meetup #14',
+		'Applied Machine Learning & LLM Hackathon',
+		'Flutter & Mobile Architecture Workshop'
+	)`)
+
 	seedEventsSQL := `
-	INSERT INTO events (title, organizer, event_type, event_date, location, work_format, description, tags) VALUES
-	('KBTU IT Career Fair & Fast-Track Interviews', 'KBTU Career Center', 'Career Fair', '2026-11-28 • 14:00', 'Almaty, Tole Bi 59 (Independence Hall)', 'Offline', 'Meet tech leads from Kaspi, Kolesa, Freedom, and Halyk. Bring your SkillMatch profile for on-site internship screening.', 'Internships, Networking, Backend, Data'),
-	('Almaty Go & Cloud Native Meetup #14', 'Go Kazakhstan Community', 'Tech Meetup', '2026-12-03 • 19:00', 'Almaty, SmArt.Point', 'Offline', 'Deep dive into high-load microservices in Go, PostgreSQL connection pooling, and Kubernetes deployments.', 'Go, PostgreSQL, Docker, Kubernetes'),
-	('Applied Machine Learning & LLM Hackathon', 'Astana Hub & KBTU FIT', 'Hackathon', '2026-12-06 • 10:00', 'Almaty / Online Hybrid', 'Online', '48-hour AI product sprint. Build practical ML/LLM prototypes with mentorship from senior ML engineers.', 'Python, Machine Learning, LLM, FastAPI'),
-	('Flutter & Mobile Architecture Workshop', 'GDG Almaty', 'Workshop', '2026-12-11 • 18:30', 'Almaty, KBTU Coworking', 'Offline', 'Clean state management, REST API integration, and deploying Flutter Web & Android apps to production.', 'Flutter, Dart, Mobile, REST API')
-	ON CONFLICT (title) DO NOTHING;
+	INSERT INTO events (title, organizer, event_type, event_date, location, work_format, capacity, external_url, description, tags) VALUES
+	(
+		'IT-беш Servercore: AI-инфраструктура и GPU',
+		'Servercore',
+		'Tech Meetup',
+		TO_CHAR(CURRENT_DATE + INTERVAL '2 days', 'YYYY-MM-DD') || ' • 19:00',
+		'Almaty',
+		'Offline',
+		80,
+		'https://choyxona.tech/en/events/almaty/',
+		'Практический вечерний митап об архитектуре AI-инфраструктуры, облачных вычислениях и работе с GPU-кластерами в продакшене.',
+		'AI, GPU, Cloud, DevOps, Linux'
+	),
+	(
+		'Запуск национальной платформы PROVECTOR: переход в финтех',
+		'PROVECTOR Community',
+		'Product Launch',
+		TO_CHAR(CURRENT_DATE + INTERVAL '3 days', 'YYYY-MM-DD') || ' • 18:30',
+		'Almaty',
+		'Offline',
+		120,
+		'https://choyxona.tech/en/events/almaty/',
+		'Презентация национальной карьерной платформы для специалистов и студентов, планирующих старт и переход в финтех-индустрию Казахстана.',
+		'Fintech, Product Management, Career, Agile / Scrum'
+	),
+	(
+		'Саммит CDO ExecLeaders: от ИИ-пилотов к масштабированию',
+		'CDO ExecLeaders',
+		'Conference',
+		TO_CHAR(CURRENT_DATE + INTERVAL '5 days', 'YYYY-MM-DD') || ' • 10:00',
+		'Almaty',
+		'Offline',
+		150,
+		'https://choyxona.tech/en/events/almaty/',
+		'Отраслевой саммит руководителей по данным и ИИ: кейсы внедрения ML-моделей, аналитики данных и масштабирования AI-сервисов в компаниях.',
+		'Data Analysis, Machine Learning, LLM & Prompt Engineering, Python'
+	),
+	(
+		'Митап BCC HUB по системному анализу с реальными кейсами',
+		'BCC HUB (Банк ЦентрКредит)',
+		'Tech Meetup',
+		TO_CHAR(CURRENT_DATE + INTERVAL '6 days', 'YYYY-MM-DD') || ' • 14:00',
+		'Almaty, BCC HUB',
+		'Offline',
+		100,
+		'https://choyxona.tech/en/events/almaty/',
+		'Бесплатный разбор реальных банковских кейсов по системному анализу, проектированию REST API, работе с базами данных и интеграциям.',
+		'REST API, SQL, PostgreSQL, Product Management'
+	),
+	(
+		'AI for Business от nFactorial School',
+		'nFactorial School',
+		'Workshop',
+		TO_CHAR(CURRENT_DATE + INTERVAL '8 days', 'YYYY-MM-DD') || ' • 15:00',
+		'Almaty',
+		'Offline',
+		90,
+		'https://choyxona.tech/en/events/almaty/',
+		'Практический тренинг от nFactorial School по применению генеративного ИИ и LLM-инструментов для автоматизации продуктовых и инженерных задач.',
+		'LLM & Prompt Engineering, Python, FastAPI, AI'
+	),
+	(
+		'Студенческий хакатон AI Engineering Almaty',
+		'AI Engineering Almaty',
+		'Hackathon',
+		TO_CHAR(CURRENT_DATE + INTERVAL '10 days', 'YYYY-MM-DD') || ' • 10:00',
+		'Almaty',
+		'Offline',
+		120,
+		'https://choyxona.tech/en/events/almaty/',
+		'Командный студенческий хакатон по созданию рабочих прототипов ИИ-решений с менторской поддержкой инженеров и питчингом проектов.',
+		'Python, Machine Learning, FastAPI, Docker, Git'
+	)
+	ON CONFLICT (title) DO UPDATE SET
+		organizer = EXCLUDED.organizer,
+		event_type = EXCLUDED.event_type,
+		event_date = EXCLUDED.event_date,
+		location = EXCLUDED.location,
+		work_format = EXCLUDED.work_format,
+		capacity = EXCLUDED.capacity,
+		external_url = EXCLUDED.external_url,
+		description = EXCLUDED.description,
+		tags = EXCLUDED.tags;
 	`
 	_, _ = db.Exec(seedEventsSQL)
 
+	_, _ = db.Exec(`DELETE FROM courses WHERE title IN (
+		'Production Go & REST Microservices',
+		'Docker & CI/CD for Software Engineers',
+		'PostgreSQL Query Optimization & Indexing',
+		'Applied Machine Learning with Scikit-Learn',
+		'Flutter Cross-Platform App Development',
+		'Kubernetes Fundamentals & Cloud Deploy',
+		'Modern TypeScript & React Frontend',
+		'System Design & Distributed Caching with Redis'
+	)`)
+
 	seedCoursesSQL := `
-	INSERT INTO courses (title, provider, skill_name, level, duration, is_free, description) VALUES
-	('Production Go & REST Microservices', 'KBTU Open Tech', 'Go', 'Intermediate', '4 weeks', TRUE, 'Build scalable HTTP services with Gin, sqlx, PostgreSQL, graceful shutdown, and clean architecture.'),
-	('Docker & CI/CD for Software Engineers', 'Stepik Cloud Lab', 'Docker', 'Beginner', '2 weeks', TRUE, 'Containerize Go and Python apps, write multi-stage Dockerfiles, and automate builds with GitHub Actions.'),
-	('PostgreSQL Query Optimization & Indexing', 'Coursera Engineering', 'PostgreSQL', 'Intermediate', '3 weeks', TRUE, 'Master B-Tree/GIN indexes, EXPLAIN ANALYZE, transactions, and connection pooling in production.'),
-	('Applied Machine Learning with Scikit-Learn', 'KBTU Data Lab', 'Machine Learning', 'Intermediate', '5 weeks', TRUE, 'End-to-end classification, clustering, feature scaling, and hyperparameter tuning on real datasets.'),
-	('Flutter Cross-Platform App Development', 'Google Developers', 'Flutter', 'Intermediate', '4 weeks', TRUE, 'Responsive layouts, asynchronous FutureBuilder patterns, and REST API client architecture.'),
-	('Kubernetes Fundamentals & Cloud Deploy', 'Linux Foundation', 'Kubernetes', 'Intermediate', '4 weeks', FALSE, 'Pods, Services, Ingress, ConfigMaps, and zero-downtime rollouts in cloud clusters.'),
-	('Modern TypeScript & React Frontend', 'Frontend Masters', 'React', 'Intermediate', '3 weeks', TRUE, 'Component patterns, hooks, state management, and strict TypeScript integration.'),
-	('System Design & Distributed Caching with Redis', 'HighLoad Academy', 'Redis', 'Advanced', '3 weeks', TRUE, 'Caching strategies, rate limiting, pub/sub messaging, and fault-tolerant architecture.')
-	ON CONFLICT (title) DO NOTHING;
+	INSERT INTO courses (title, provider, skill_name, level, duration, is_free, external_url, description) VALUES
+	(
+		'Программирование на Golang',
+		'Stepik',
+		'Go',
+		'Beginner',
+		'1 week',
+		TRUE,
+		'https://stepik.org/course/54403/promo',
+		'Интенсивный практический курс по синтаксису Go, структурам данных, горутинам, интерфейсам и стандартной библиотеке с автоматической проверкой кода.'
+	),
+	(
+		'Введение в язык программирования Go (Golang)',
+		'Stepik',
+		'Go',
+		'Intermediate',
+		'3 weeks',
+		TRUE,
+		'https://stepik.org/course/172812/promo',
+		'Углублённая практика по слайсам, мапам, обработке ошибок, конкурентности и идиоматичному проектированию сервисов на Go.'
+	),
+	(
+		'Знакомство с Docker',
+		'Stepik',
+		'Docker',
+		'Beginner',
+		'2 weeks',
+		TRUE,
+		'https://stepik.org',
+		'Практика упаковки приложений в контейнеры с нуля: работа с Docker CLI, написание Dockerfile, сборка образов и оркестрация через Docker Compose.'
+	),
+	(
+		'Introduction to Docker',
+		'Google Cloud (Coursera)',
+		'Docker',
+		'Intermediate',
+		'1 week',
+		TRUE,
+		'https://www.coursera.org/courses?query=docker',
+		'Лабораторный курс от Google Cloud по созданию, отладке и публикации контейнерных образов для облачного деплоя микросервисов.'
+	),
+	(
+		'Database Design and Basic SQL in PostgreSQL',
+		'University of Michigan (Coursera)',
+		'PostgreSQL',
+		'Intermediate',
+		'2 weeks',
+		TRUE,
+		'https://www.coursera.org/learn/database-design-postgresql',
+		'Курс профессора Чарльза Северанса по проектированию реляционных схем, нормализации, внешним ключам и сложным SQL-запросам в PostgreSQL.'
+	),
+	(
+		'Симулятор SQL',
+		'karpov.courses',
+		'SQL',
+		'Intermediate',
+		'4 weeks',
+		TRUE,
+		'https://karpov.courses',
+		'Интерактивный тренажёр с реальными продуктовыми и аналитическими задачами: JOIN, агрегации, подзапросы и оконные функции.'
+	),
+	(
+		'Introduction to Containers w/ Docker, Kubernetes & OpenShift',
+		'IBM (Coursera)',
+		'Kubernetes',
+		'Intermediate',
+		'4 weeks',
+		TRUE,
+		'https://www.coursera.org/courses?query=docker',
+		'Практический курс от IBM по развёртыванию контейнеров, управлению кластерами Kubernetes, Pods, Services и масштабированию приложений.'
+	),
+	(
+		'Introduction to Front-End Development',
+		'Meta (Coursera)',
+		'React',
+		'Beginner',
+		'3 weeks',
+		TRUE,
+		'https://www.coursera.org/courses?query=free&skills=Web%20Development',
+		'Официальный курс от инженеров Meta по современной веб-разработке, компонентному подходу, UI-вёрстке и основам React.'
+	),
+	(
+		'Databases and SQL for Data Science with Python',
+		'IBM (Coursera)',
+		'Python',
+		'Intermediate',
+		'4 weeks',
+		TRUE,
+		'https://www.coursera.org/courses?query=postgresql',
+		'Работа с реляционными базами данных из Python, написание аналитических SQL-запросов и интеграция данных в ML-пайплайны.'
+	),
+	(
+		'Flutter Разработка. От базы до вайб кодинга',
+		'Stepik',
+		'Flutter',
+		'Intermediate',
+		'4 weeks',
+		FALSE,
+		'https://stepik.org/course/208780/promo',
+		'Кроссплатформенная разработка на Dart и Flutter: архитектура виджетов, работа с REST API, локальным состоянием и сборка под Web и Mobile.'
+	)
+	ON CONFLICT (title) DO UPDATE SET
+		provider = EXCLUDED.provider,
+		skill_name = EXCLUDED.skill_name,
+		level = EXCLUDED.level,
+		duration = EXCLUDED.duration,
+		is_free = EXCLUDED.is_free,
+		external_url = EXCLUDED.external_url,
+		description = EXCLUDED.description;
 	`
 	_, _ = db.Exec(seedCoursesSQL)
 
@@ -843,6 +1052,7 @@ func main() {
 		api.GET("/events", func(c *gin.Context) {
 			studentIDStr := strings.TrimSpace(c.Query("student_id"))
 			registeredSet := make(map[int64]bool)
+			studentSkillsSet := make(map[string]bool)
 
 			if studentIDStr != "" {
 				rRows, err := db.Query(`
@@ -858,6 +1068,23 @@ func main() {
 					_ = rRows.Err()
 					rRows.Close()
 				}
+
+				sRows, err := db.Query(`
+					SELECT LOWER(s.name)
+					FROM student_skills ss
+					JOIN skills s ON s.id = ss.skill_id
+					WHERE ss.student_profile_id = $1
+				`, studentIDStr)
+				if err == nil {
+					for sRows.Next() {
+						var sName string
+						if err := sRows.Scan(&sName); err == nil {
+							studentSkillsSet[strings.TrimSpace(sName)] = true
+						}
+					}
+					_ = sRows.Err()
+					sRows.Close()
+				}
 			}
 
 			rows, err := db.Query(`
@@ -869,11 +1096,13 @@ func main() {
 					e.event_date,
 					e.location,
 					e.work_format,
+					COALESCE(e.capacity, 100),
+					COALESCE(e.external_url, ''),
 					e.description,
 					e.tags,
 					(SELECT COUNT(*) FROM event_registrations er WHERE er.event_id = e.id)
 				FROM events e
-				ORDER BY e.id ASC
+				ORDER BY e.event_date ASC, e.id ASC
 			`)
 			if err != nil {
 				c.JSON(500, gin.H{"error": err.Error()})
@@ -887,9 +1116,18 @@ func main() {
 				if err := rows.Scan(
 					&ev.ID, &ev.Title, &ev.Organizer, &ev.EventType,
 					&ev.EventDate, &ev.Location, &ev.WorkFormat,
+					&ev.Capacity, &ev.ExternalURL,
 					&ev.Description, &ev.Tags, &ev.RegisteredCount,
 				); err == nil {
 					ev.IsRegistered = registeredSet[ev.ID]
+					ev.MatchedTags = make([]string, 0)
+					for _, rawTag := range strings.Split(ev.Tags, ",") {
+						tag := strings.TrimSpace(rawTag)
+						if tag != "" && studentSkillsSet[strings.ToLower(tag)] {
+							ev.MatchedTags = append(ev.MatchedTags, tag)
+						}
+					}
+					ev.IsRecommended = len(ev.MatchedTags) > 0
 					events = append(events, ev)
 				}
 			}
@@ -918,7 +1156,21 @@ func main() {
 
 			if err == nil {
 				_, _ = db.Exec(`DELETE FROM event_registrations WHERE id = $1`, existingID)
-				c.JSON(200, gin.H{"registered": false})
+				var cnt int
+				_ = db.QueryRow(`SELECT COUNT(*) FROM event_registrations WHERE event_id = $1`, eventID).Scan(&cnt)
+				c.JSON(200, gin.H{"registered": false, "registered_count": cnt})
+				return
+			}
+
+			var capacity, currentCount int
+			_ = db.QueryRow(`
+				SELECT COALESCE(capacity, 100),
+				       (SELECT COUNT(*) FROM event_registrations WHERE event_id = $1)
+				FROM events WHERE id = $1
+			`, eventID).Scan(&capacity, &currentCount)
+
+			if capacity > 0 && currentCount >= capacity {
+				c.JSON(400, gin.H{"error": "All spots for this event are full"})
 				return
 			}
 
@@ -931,7 +1183,9 @@ func main() {
 				c.JSON(500, gin.H{"error": err.Error()})
 				return
 			}
-			c.JSON(200, gin.H{"registered": true})
+			var cnt int
+			_ = db.QueryRow(`SELECT COUNT(*) FROM event_registrations WHERE event_id = $1`, eventID).Scan(&cnt)
+			c.JSON(200, gin.H{"registered": true, "registered_count": cnt})
 		})
 
 		// =====================================
@@ -939,22 +1193,22 @@ func main() {
 		// =====================================
 		api.GET("/courses", func(c *gin.Context) {
 			studentIDStr := strings.TrimSpace(c.Query("student_id"))
-			ownedSkills := make(map[string]bool)
+			ownedSkillLevel := make(map[string]string)
 			enrollments := make(map[int64]string)
-			missingDemandCount := make(map[string]int)
+			vacancyDemandCount := make(map[string]int)
 
 			if studentIDStr != "" {
 				sRows, err := db.Query(`
-					SELECT LOWER(s.name)
+					SELECT LOWER(s.name), COALESCE(ss.proficiency_level, 'Intermediate')
 					FROM student_skills ss
 					JOIN skills s ON s.id = ss.skill_id
 					WHERE ss.student_profile_id = $1
 				`, studentIDStr)
 				if err == nil {
 					for sRows.Next() {
-						var sName string
-						if err := sRows.Scan(&sName); err == nil {
-							ownedSkills[strings.TrimSpace(sName)] = true
+						var sName, lvl string
+						if err := sRows.Scan(&sName, &lvl); err == nil {
+							ownedSkillLevel[strings.TrimSpace(sName)] = lvl
 						}
 					}
 					_ = sRows.Err()
@@ -978,7 +1232,6 @@ func main() {
 					cRows.Close()
 				}
 
-				// Считаем, сколько активных вакансий требуют навык, которого ещё нет у студента
 				vRows, err := db.Query(`
 					SELECT LOWER(s.name), COUNT(DISTINCT vs.vacancy_id)
 					FROM vacancy_skills vs
@@ -992,9 +1245,7 @@ func main() {
 						var sName string
 						var cnt int
 						if err := vRows.Scan(&sName, &cnt); err == nil {
-							if !ownedSkills[strings.TrimSpace(sName)] {
-								missingDemandCount[strings.TrimSpace(sName)] = cnt
-							}
+							vacancyDemandCount[strings.TrimSpace(sName)] = cnt
 						}
 					}
 					_ = vRows.Err()
@@ -1003,7 +1254,7 @@ func main() {
 			}
 
 			rows, err := db.Query(`
-				SELECT id, title, provider, skill_name, level, duration, is_free, description
+				SELECT id, title, provider, skill_name, level, duration, is_free, COALESCE(external_url, ''), description
 				FROM courses
 				ORDER BY id ASC
 			`)
@@ -1018,16 +1269,24 @@ func main() {
 				var item CourseItem
 				if err := rows.Scan(
 					&item.ID, &item.Title, &item.Provider, &item.SkillName,
-					&item.Level, &item.Duration, &item.IsFree, &item.Description,
+					&item.Level, &item.Duration, &item.IsFree, &item.ExternalURL, &item.Description,
 				); err == nil {
 					item.EnrollmentStatus = enrollments[item.ID]
 					key := strings.ToLower(strings.TrimSpace(item.SkillName))
-					if demand, missing := missingDemandCount[key]; missing && demand > 0 {
+					demand := vacancyDemandCount[key]
+					item.BoostedVacanciesCount = demand
+
+					currentLvl, hasSkill := ownedSkillLevel[key]
+					if !hasSkill {
 						item.IsRecommended = true
-						item.RecommendationReason = "Closes skill gap for " + strconv.Itoa(demand) + " open vacancies"
-					} else if !ownedSkills[key] {
+						if demand > 0 {
+							item.RecommendationReason = "Closes skill gap for " + strconv.Itoa(demand) + " open vacancies"
+						} else {
+							item.RecommendationReason = "Adds new skill (" + item.SkillName + ") to your profile"
+						}
+					} else if skillWeight(item.Level) > skillWeight(currentLvl) {
 						item.IsRecommended = true
-						item.RecommendationReason = "Adds new skill (" + item.SkillName + ") to your profile"
+						item.RecommendationReason = "Upgrades " + item.SkillName + ": " + currentLvl + " → " + item.Level
 					}
 					courses = append(courses, item)
 				}
@@ -1043,7 +1302,7 @@ func main() {
 			courseID, _ := strconv.ParseInt(c.Param("id"), 10, 64)
 			var body struct {
 				StudentProfileID int64  `json:"student_profile_id"`
-				Status           string `json:"status"` // Enrolled | Completed
+				Status           string `json:"status"`
 			}
 			if err := c.ShouldBindJSON(&body); err != nil || body.StudentProfileID <= 0 {
 				c.JSON(400, gin.H{"error": "student_profile_id is required"})
@@ -1066,8 +1325,9 @@ func main() {
 				return
 			}
 
-			// Если курс завершён — автоматически добавляем навык в профиль студента!
 			addedSkill := ""
+			addedLevel := ""
+			boostedVacancies := 0
 			if status == "Completed" {
 				var skillName, courseLevel string
 				err := db.QueryRow(`SELECT skill_name, level FROM courses WHERE id = $1`, courseID).Scan(&skillName, &courseLevel)
@@ -1081,16 +1341,31 @@ func main() {
 						_, _ = db.Exec(`
 							INSERT INTO student_skills (student_profile_id, skill_id, proficiency_level)
 							VALUES ($1, $2, $3)
-							ON CONFLICT (student_profile_id, skill_id) DO NOTHING
+							ON CONFLICT (student_profile_id, skill_id)
+							DO UPDATE SET proficiency_level = CASE
+								WHEN student_skills.proficiency_level = 'Beginner' AND EXCLUDED.proficiency_level IN ('Intermediate', 'Advanced') THEN EXCLUDED.proficiency_level
+								WHEN student_skills.proficiency_level = 'Intermediate' AND EXCLUDED.proficiency_level = 'Advanced' THEN EXCLUDED.proficiency_level
+								ELSE student_skills.proficiency_level
+							END
 						`, body.StudentProfileID, skillID, courseLevel)
 						addedSkill = skillName
+						addedLevel = courseLevel
+
+						_ = db.QueryRow(`
+							SELECT COUNT(DISTINCT vs.vacancy_id)
+							FROM vacancy_skills vs
+							JOIN vacancies v ON v.id = vs.vacancy_id
+							WHERE vs.skill_id = $1 AND COALESCE(v.is_active, TRUE) = TRUE
+						`, skillID).Scan(&boostedVacancies)
 					}
 				}
 			}
 
 			c.JSON(200, gin.H{
-				"status":      status,
-				"added_skill": addedSkill,
+				"status":            status,
+				"added_skill":       addedSkill,
+				"added_level":       addedLevel,
+				"boosted_vacancies": boostedVacancies,
 			})
 		})
 
@@ -1102,8 +1377,14 @@ func main() {
 			companyIDStr := c.Query("company_id")
 			includeInactive := c.Query("include_inactive") == "true"
 
+			type appMeta struct {
+				id          int64
+				status      string
+				coverLetter string
+				feedback    string
+			}
 			studentSkillLevels := make(map[string]string)
-			studentApps := make(map[int64][2]string)
+			studentApps := make(map[int64]appMeta)
 
 			if studentIDStr != "" {
 				sRows, err := db.Query(`
@@ -1124,16 +1405,16 @@ func main() {
 				}
 
 				aRows, err := db.Query(`
-					SELECT vacancy_id, status, COALESCE(company_feedback, '')
+					SELECT id, vacancy_id, status, COALESCE(cover_letter, ''), COALESCE(company_feedback, '')
 					FROM applications
 					WHERE student_profile_id = $1
 				`, studentIDStr)
 				if err == nil {
 					for aRows.Next() {
-						var vID int64
-						var st, fb string
-						if err := aRows.Scan(&vID, &st, &fb); err == nil {
-							studentApps[vID] = [2]string{st, fb}
+						var appID, vID int64
+						var st, cover, fb string
+						if err := aRows.Scan(&appID, &vID, &st, &cover, &fb); err == nil {
+							studentApps[vID] = appMeta{id: appID, status: st, coverLetter: cover, feedback: fb}
 						}
 					}
 					_ = aRows.Err()
@@ -1185,8 +1466,10 @@ func main() {
 					&v.IsActive, &v.ApplicantsCount, &v.NewApplicantsCount,
 				); err == nil {
 					if appInfo, ok := studentApps[v.ID]; ok {
-						v.AppliedStatus = appInfo[0]
-						v.CompanyFeedback = appInfo[1]
+						v.ApplicationID = appInfo.id
+						v.AppliedStatus = appInfo.status
+						v.CoverLetter = appInfo.coverLetter
+						v.CompanyFeedback = appInfo.feedback
 					}
 					vacancies = append(vacancies, v)
 				}
@@ -1550,6 +1833,25 @@ func main() {
 					}
 					_ = vsRows.Err()
 					vsRows.Close()
+				}
+
+				applicants[i].RegisteredEvents = make([]string, 0)
+				evRows, err := db.Query(`
+					SELECT e.title
+					FROM event_registrations er
+					JOIN events e ON e.id = er.event_id
+					WHERE er.student_profile_id = $1
+					ORDER BY e.event_date ASC
+				`, stID)
+				if err == nil {
+					for evRows.Next() {
+						var evTitle string
+						if err := evRows.Scan(&evTitle); err == nil {
+							applicants[i].RegisteredEvents = append(applicants[i].RegisteredEvents, evTitle)
+						}
+					}
+					_ = evRows.Err()
+					evRows.Close()
 				}
 			}
 

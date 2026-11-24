@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../core/app_theme.dart';
 import '../../models/vacancy.dart';
+import '../../services/learning_service.dart';
+import '../../services/student_service.dart';
 import '../../services/vacancy_service.dart';
 import '../../state/session_controller.dart';
 import '../../widgets/match_badge.dart';
@@ -61,6 +63,140 @@ class _VacancyDetailScreenState extends State<VacancyDetailScreen> {
       });
     } catch (_) {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _openCourseQuickClaim(String skillName) async {
+    final v = _vacancy;
+    if (v == null) return;
+
+    try {
+      final courses = await LearningService.fetchCourses(_studentId);
+      final matching = courses
+          .where(
+            (c) => c.skillName.toLowerCase() == skillName.toLowerCase(),
+          )
+          .toList();
+
+      if (!mounted) return;
+
+      if (matching.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'You can add "$skillName" in your Profile or explore all courses in the Courses tab.',
+            ),
+          ),
+        );
+        return;
+      }
+
+      final course = matching.first;
+      final claim = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text('Close Skill Gap: $skillName'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                course.title,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${course.provider} • ${course.duration} • Grants ${course.skillName} (${course.level})',
+                style: TextStyle(color: Colors.grey[700], fontSize: 13),
+              ),
+              const SizedBox(height: 10),
+              Text(course.description, style: const TextStyle(fontSize: 13)),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Close'),
+            ),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green.shade700,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () => Navigator.pop(ctx, true),
+              icon: const Icon(Icons.check_circle_outline, size: 18),
+              label: const Text('Complete & Claim Skill'),
+            ),
+          ],
+        ),
+      );
+
+      if (claim != true) return;
+
+      await LearningService.updateCourseStatus(
+        courseId: course.id,
+        studentProfileId: _studentId,
+        status: 'Completed',
+      );
+      final skills = await StudentService.fetchSkills(_studentId);
+      SessionController.instance.setStudentSkills(skills);
+      await _refreshVacancy(v.id);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Skill "$skillName" claimed! Your Match Score has been recalculated.',
+          ),
+          backgroundColor: Colors.green.shade700,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  Future<void> _withdrawApplication(Vacancy v) async {
+    if (v.applicationId <= 0) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Withdraw Application?'),
+        content: Text(
+          'Your application to "${v.title}" at ${v.companyName} will be withdrawn.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Keep'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Withdraw'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    final ok = await VacancyService.withdrawApplication(v.applicationId);
+    if (ok) {
+      await _refreshVacancy(v.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Application withdrawn.')),
+      );
     }
   }
 
@@ -294,18 +430,56 @@ class _VacancyDetailScreenState extends State<VacancyDetailScreen> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        'Application Status: ${v.appliedStatus}',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 15,
-                                        ),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            'Application Status: ${v.appliedStatus}',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 15,
+                                            ),
+                                          ),
+                                          if (v.appliedStatus == 'Applied' &&
+                                              v.applicationId > 0)
+                                            TextButton.icon(
+                                              onPressed: () =>
+                                                  _withdrawApplication(v),
+                                              icon: const Icon(
+                                                Icons.undo_rounded,
+                                                size: 16,
+                                                color: Colors.red,
+                                              ),
+                                              label: const Text(
+                                                'Withdraw',
+                                                style: TextStyle(
+                                                  color: Colors.red,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ),
+                                        ],
                                       ),
-                                      if (v.companyFeedback.isNotEmpty) ...[
+                                      if (v.coverLetter.isNotEmpty) ...[
                                         const SizedBox(height: 6),
                                         Text(
+                                          'Your Cover Note: "${v.coverLetter}"',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontStyle: FontStyle.italic,
+                                            color: Colors.grey[800],
+                                          ),
+                                        ),
+                                      ],
+                                      if (v.companyFeedback.isNotEmpty) ...[
+                                        const SizedBox(height: 8),
+                                        Text(
                                           'Response from ${v.companyName}: ${v.companyFeedback}',
-                                          style: const TextStyle(fontSize: 14),
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w500,
+                                          ),
                                         ),
                                       ],
                                     ],
@@ -361,7 +535,7 @@ class _VacancyDetailScreenState extends State<VacancyDetailScreen> {
                                     ],
                                     if (v.missingSkills.isNotEmpty) ...[
                                       const Text(
-                                        'Skills to Improve / Missing',
+                                        'Skills to Improve (tap a skill to take a course)',
                                         style: TextStyle(
                                           fontWeight: FontWeight.w600,
                                           color: Colors.red,
@@ -374,15 +548,17 @@ class _VacancyDetailScreenState extends State<VacancyDetailScreen> {
                                         runSpacing: 6,
                                         children: v.missingSkills
                                             .map(
-                                              (s) => Chip(
+                                              (s) => ActionChip(
                                                 avatar: const Icon(
-                                                  Icons.cancel_outlined,
+                                                  Icons.school_outlined,
                                                   size: 16,
                                                   color: Colors.red,
                                                 ),
-                                                label: Text(s),
+                                                label: Text('$s • Learn'),
                                                 backgroundColor:
                                                     Colors.red.shade50,
+                                                onPressed: () =>
+                                                    _openCourseQuickClaim(s),
                                               ),
                                             )
                                             .toList(),
