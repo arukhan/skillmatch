@@ -25,7 +25,7 @@ class _EventsScreenState extends State<EventsScreen> {
   }
 
   void _reload() {
-    _futureEvents = LearningService.fetchEvents(_studentId);
+    _futureEvents = LearningService.fetchEvents(studentId: _studentId);
   }
 
   @override

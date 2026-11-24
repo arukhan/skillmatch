@@ -6,6 +6,7 @@ import '../../services/student_service.dart';
 import '../../services/vacancy_service.dart';
 import '../../state/session_controller.dart';
 import '../../widgets/skill_chip.dart';
+import '../admin/admin_analytics_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -79,6 +80,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
     if (langCount > 0) score += 10;
     return score.clamp(0, 100);
+  }
+
+  void _openAdminPanel() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const AdminAnalyticsScreen()),
+    );
   }
 
   void _showEditProfileDialog(StudentProfile current) {
@@ -696,6 +703,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         title: const Text('Student Profile'),
         actions: [
+          ListenableBuilder(
+            listenable: SessionController.instance,
+            builder: (context, _) {
+              if (!SessionController.instance.isAdmin) {
+                return const SizedBox.shrink();
+              }
+              return IconButton(
+                tooltip: 'Admin Analytics',
+                icon: const Icon(Icons.admin_panel_settings_rounded),
+                onPressed: _openAdminPanel,
+              );
+            },
+          ),
           IconButton(
             tooltip: 'Refresh Profile',
             icon: const Icon(Icons.refresh_rounded),
@@ -722,6 +742,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  ListenableBuilder(
+                    listenable: SessionController.instance,
+                    builder: (context, _) {
+                      if (!SessionController.instance.isAdmin) {
+                        return const SizedBox.shrink();
+                      }
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Card(
+                          color: AppTheme.brandPurpleLight,
+                          child: ListTile(
+                            leading: const CircleAvatar(
+                              backgroundColor: AppTheme.brandPurple,
+                              child: Icon(
+                                Icons.analytics_outlined,
+                                color: Colors.white,
+                              ),
+                            ),
+                            title: const Text(
+                              'Admin Analytics Panel',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            subtitle: const Text(
+                              'Platform KPIs, universities, companies & skill demand',
+                            ),
+                            trailing: const Icon(
+                              Icons.arrow_forward_ios_rounded,
+                              size: 16,
+                              color: AppTheme.brandPurple,
+                            ),
+                            onTap: _openAdminPanel,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                   FutureBuilder<StudentProfile>(
                     future: _futureStudent,
                     builder: (context, snapshot) {

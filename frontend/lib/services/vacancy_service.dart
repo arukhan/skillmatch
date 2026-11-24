@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../core/api_config.dart';
@@ -134,7 +135,7 @@ class VacancyService {
     final uri = Uri.parse('${ApiConfig.baseUrl}/vacancies')
         .replace(queryParameters: queryParams);
 
-    final response = await http.get(uri).timeout(const Duration(seconds: 6));
+    final response = await http.get(uri).timeout(const Duration(seconds: 15));
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
@@ -160,27 +161,40 @@ class VacancyService {
     String salaryRange = '',
     required List<String> skills,
   }) async {
-    final response = await http
-        .post(
-          Uri.parse('${ApiConfig.baseUrl}/vacancies'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            'company_id': companyId,
-            'company_name': companyName,
-            'title': title,
-            'description': description,
-            'experience_required': experienceRequired.round(),
-            'employment_type': employmentType,
-            'work_format': workFormat,
-            'location': location,
-            'salary_range': salaryRange,
-            'skills': skills,
-          }),
-        )
-        .timeout(const Duration(seconds: 6));
+    try {
+      final response = await http
+          .post(
+            Uri.parse('${ApiConfig.baseUrl}/vacancies'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'company_id': companyId,
+              'company_name': companyName,
+              'title': title,
+              'description': description,
+              'experience_required': experienceRequired.round(),
+              'employment_type': employmentType,
+              'work_format': workFormat,
+              'location': location,
+              'salary_range': salaryRange,
+              'skills': skills,
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
 
-    if (response.statusCode != 200 && response.statusCode != 201) {
-      throw Exception('Server returned ${response.statusCode}');
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        String message = 'Server returned ${response.statusCode}';
+        if (response.body.isNotEmpty) {
+          try {
+            final decoded = jsonDecode(response.body);
+            if (decoded is Map && decoded['error'] != null) {
+              message = decoded['error'].toString();
+            }
+          } catch (_) {}
+        }
+        throw Exception(message);
+      }
+    } on TimeoutException {
+      throw Exception('Request timed out while saving vacancy. Please try again.');
     }
   }
 
@@ -192,7 +206,7 @@ class VacancyService {
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({'is_active': isActive}),
           )
-          .timeout(const Duration(seconds: 5));
+          .timeout(const Duration(seconds: 10));
       return response.statusCode == 200;
     } catch (_) {
       return false;
@@ -203,7 +217,7 @@ class VacancyService {
     try {
       final response = await http
           .delete(Uri.parse('${ApiConfig.baseUrl}/vacancies/$vacancyId'))
-          .timeout(const Duration(seconds: 5));
+          .timeout(const Duration(seconds: 10));
       return response.statusCode == 200;
     } catch (_) {
       return false;
@@ -226,7 +240,7 @@ class VacancyService {
             'cover_letter': coverLetter,
           }),
         )
-        .timeout(const Duration(seconds: 6));
+        .timeout(const Duration(seconds: 12));
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       return true;
@@ -242,7 +256,7 @@ class VacancyService {
             Uri.parse(
                 '${ApiConfig.baseUrl}/applications/$applicationId/withdraw'),
           )
-          .timeout(const Duration(seconds: 5));
+          .timeout(const Duration(seconds: 10));
       return response.statusCode == 200;
     } catch (_) {
       return false;
@@ -265,7 +279,7 @@ class VacancyService {
     final uri = Uri.parse('${ApiConfig.baseUrl}/companies/$companyId/applicants')
         .replace(queryParameters: params.isNotEmpty ? params : null);
 
-    final response = await http.get(uri).timeout(const Duration(seconds: 6));
+    final response = await http.get(uri).timeout(const Duration(seconds: 12));
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
@@ -296,7 +310,7 @@ class VacancyService {
               'company_feedback': companyFeedback,
             }),
           )
-          .timeout(const Duration(seconds: 6));
+          .timeout(const Duration(seconds: 10));
       return response.statusCode == 200;
     } catch (_) {
       return false;

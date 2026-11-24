@@ -37,6 +37,7 @@ class AuthService {
       studentProfileId: role == UserRole.student ? profileId : null,
       companyId: role == UserRole.company ? profileId : null,
       displayName: displayName,
+      isAdmin: data['is_admin'] == true,
       isDemoFallback: false,
     );
   }
@@ -75,7 +76,7 @@ class AuthService {
       if (response.statusCode == 200) {
         final session =
             _parseBackendSession(body, trimmedEmail, expectedRole);
-        if (session.role != expectedRole) {
+        if (!session.isAdmin && session.role != expectedRole) {
           throw AuthException(
             'This account is registered as ${session.role.label}. Please switch the role tab above.',
           );

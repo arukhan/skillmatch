@@ -29,6 +29,7 @@ class SessionController extends ChangeNotifier {
 
   AuthSession? get session => _session;
   bool get isAuthenticated => _session != null;
+  bool get isAdmin => _session?.isAdmin == true;
   UserRole? get role => _session?.role;
   int get activeStudentProfileId => _session?.studentProfileId ?? 1;
   int get activeCompanyId => _session?.companyId ?? 1;

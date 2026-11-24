@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/app_theme.dart';
 import '../../models/skill_item.dart';
 import '../../models/vacancy.dart';
+import '../../services/learning_service.dart';
 import '../../services/student_service.dart';
 import '../../services/vacancy_service.dart';
 import '../../state/session_controller.dart';
@@ -39,7 +40,7 @@ class _CompanyShellState extends State<CompanyShell> {
   @override
   void initState() {
     super.initState();
-    _selectedTab = SessionController.instance.companyTabIndex.clamp(0, 2);
+    _selectedTab = SessionController.instance.companyTabIndex.clamp(0, 3);
     _reloadData();
   }
 
@@ -672,6 +673,470 @@ class _CompanyShellState extends State<CompanyShell> {
     }
   }
 
+  void _showCreateEventDialog() {
+    final titleCtrl = TextEditingController();
+    final dateCtrl = TextEditingController(text: '2026-12-02 • 18:30');
+    final locCtrl = TextEditingController(text: 'Almaty');
+    final capCtrl = TextEditingController(text: '100');
+    final tagsCtrl = TextEditingController(text: 'Go, Docker, PostgreSQL');
+    final urlCtrl = TextEditingController();
+    final descCtrl = TextEditingController();
+    String eventType = 'Tech Meetup';
+    String workFormat = 'Offline';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (sbCtx, setDlg) => AlertDialog(
+          title: const Text('Publish Tech Event / Meetup'),
+          content: SizedBox(
+            width: 460,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: titleCtrl,
+                    decoration: const InputDecoration(labelText: 'Event Title'),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          initialValue: eventType,
+                          decoration: const InputDecoration(labelText: 'Type'),
+                          items: const [
+                            DropdownMenuItem(
+                                value: 'Tech Meetup',
+                                child: Text('Tech Meetup')),
+                            DropdownMenuItem(
+                                value: 'Hackathon', child: Text('Hackathon')),
+                            DropdownMenuItem(
+                                value: 'Workshop', child: Text('Workshop')),
+                          ],
+                          onChanged: (v) {
+                            if (v != null) setDlg(() => eventType = v);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          initialValue: workFormat,
+                          decoration: const InputDecoration(labelText: 'Format'),
+                          items: const [
+                            DropdownMenuItem(
+                                value: 'Offline', child: Text('Offline')),
+                            DropdownMenuItem(
+                                value: 'Online', child: Text('Online')),
+                          ],
+                          onChanged: (v) {
+                            if (v != null) setDlg(() => workFormat = v);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: dateCtrl,
+                          decoration:
+                              const InputDecoration(labelText: 'Date & Time'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextField(
+                          controller: locCtrl,
+                          decoration:
+                              const InputDecoration(labelText: 'Location'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: capCtrl,
+                          keyboardType: TextInputType.number,
+                          decoration:
+                              const InputDecoration(labelText: 'Capacity'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        flex: 2,
+                        child: TextField(
+                          controller: tagsCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Skill Tags (comma-separated)',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: urlCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'External Registration URL (optional)',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: descCtrl,
+                    maxLines: 3,
+                    decoration: const InputDecoration(labelText: 'Description'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.brandPurple,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () async {
+                if (titleCtrl.text.trim().isEmpty) return;
+                Navigator.pop(ctx);
+                await LearningService.createEvent(
+                  companyId: _companyId,
+                  title: titleCtrl.text.trim(),
+                  organizer:
+                      SessionController.instance.session?.displayName ??
+                          'Partner',
+                  eventType: eventType,
+                  eventDate: dateCtrl.text.trim(),
+                  location: locCtrl.text.trim(),
+                  workFormat: workFormat,
+                  capacity: int.tryParse(capCtrl.text.trim()) ?? 100,
+                  externalUrl: urlCtrl.text.trim(),
+                  description: descCtrl.text.trim(),
+                  tags: tagsCtrl.text.trim(),
+                );
+                if (mounted) setState(() {});
+              },
+              child: const Text('Publish Event'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showCreateCourseDialog() {
+    final titleCtrl = TextEditingController();
+    final skillCtrl = TextEditingController(text: 'Go');
+    final durCtrl = TextEditingController(text: '2 weeks');
+    final urlCtrl = TextEditingController();
+    final descCtrl = TextEditingController();
+    String level = 'Intermediate';
+    String language = 'RU';
+    bool isFree = true;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (sbCtx, setDlg) => AlertDialog(
+          title: const Text('Publish Partner Course'),
+          content: SizedBox(
+            width: 460,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: titleCtrl,
+                    decoration: const InputDecoration(labelText: 'Course Title'),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: skillCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Target Skill (e.g. Go, Docker)',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          initialValue: level,
+                          decoration:
+                              const InputDecoration(labelText: 'Skill Level'),
+                          items: const [
+                            DropdownMenuItem(
+                                value: 'Beginner', child: Text('Beginner')),
+                            DropdownMenuItem(
+                                value: 'Intermediate',
+                                child: Text('Intermediate')),
+                            DropdownMenuItem(
+                                value: 'Advanced', child: Text('Advanced')),
+                          ],
+                          onChanged: (v) {
+                            if (v != null) setDlg(() => level = v);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          initialValue: language,
+                          decoration:
+                              const InputDecoration(labelText: 'Language'),
+                          items: const [
+                            DropdownMenuItem(value: 'RU', child: Text('RU')),
+                            DropdownMenuItem(value: 'EN', child: Text('EN')),
+                          ],
+                          onChanged: (v) {
+                            if (v != null) setDlg(() => language = v);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextField(
+                          controller: durCtrl,
+                          decoration:
+                              const InputDecoration(labelText: 'Duration'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Free Course'),
+                    value: isFree,
+                    onChanged: (val) => setDlg(() => isFree = val),
+                  ),
+                  TextField(
+                    controller: urlCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Course / Materials URL',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: descCtrl,
+                    maxLines: 3,
+                    decoration:
+                        const InputDecoration(labelText: 'Syllabus & Description'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.brandPurple,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () async {
+                if (titleCtrl.text.trim().isEmpty ||
+                    skillCtrl.text.trim().isEmpty) {
+                  return;
+                }
+                Navigator.pop(ctx);
+                await LearningService.createCourse(
+                  companyId: _companyId,
+                  title: titleCtrl.text.trim(),
+                  provider:
+                      SessionController.instance.session?.displayName ??
+                          'Partner Company',
+                  skillName: skillCtrl.text.trim(),
+                  level: level,
+                  language: language,
+                  duration: durCtrl.text.trim(),
+                  isFree: isFree,
+                  externalUrl: urlCtrl.text.trim(),
+                  description: descCtrl.text.trim(),
+                );
+                if (mounted) setState(() {});
+              },
+              child: const Text('Publish Course'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEventsAndCoursesTab() {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 760),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: _showCreateEventDialog,
+                        icon: const Icon(Icons.event),
+                        label: const Text('+ Publish Event'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.brandPurple,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: _showCreateCourseDialog,
+                        icon: const Icon(Icons.menu_book),
+                        label: const Text('+ Publish Course'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green.shade700,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                const Text(
+                  'Your Company Events',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                FutureBuilder<List<EventItem>>(
+                  future: LearningService.fetchEvents(companyId: _companyId),
+                  builder: (context, snap) {
+                    final events = snap.data ?? [];
+                    if (events.isEmpty) {
+                      return const Card(
+                        color: Colors.white,
+                        child: Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Text(
+                            'No events published by your company yet.',
+                          ),
+                        ),
+                      );
+                    }
+                    return Column(
+                      children: events
+                          .map(
+                            (e) => Card(
+                              color: Colors.white,
+                              child: ListTile(
+                                title: Text(
+                                  e.title,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  '${e.eventDate} • ${e.workFormat} • ${e.registeredCount}/${e.capacity} registered',
+                                ),
+                                trailing: IconButton(
+                                  icon: const Icon(
+                                    Icons.delete_outline,
+                                    color: Colors.red,
+                                  ),
+                                  onPressed: () async {
+                                    await LearningService.deleteEvent(e.id);
+                                    if (mounted) setState(() {});
+                                  },
+                                ),
+                              ),
+                            ),
+                          )
+                          .toList(),
+                    );
+                  },
+                ),
+                const SizedBox(height: 18),
+                const Text(
+                  'Your Company Courses',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                FutureBuilder<List<CourseItem>>(
+                  future: LearningService.fetchCourses(0, companyId: _companyId),
+                  builder: (context, snap) {
+                    final courses = snap.data ?? [];
+                    if (courses.isEmpty) {
+                      return const Card(
+                        color: Colors.white,
+                        child: Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Text(
+                            'No courses published by your company yet.',
+                          ),
+                        ),
+                      );
+                    }
+                    return Column(
+                      children: courses
+                          .map(
+                            (c) => Card(
+                              color: Colors.white,
+                              child: ListTile(
+                                title: Text(
+                                  c.title,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  'Skill: ${c.skillName} (${c.level}) • ${c.language} • ${c.isFree ? "Free" : "Paid"}',
+                                ),
+                                trailing: IconButton(
+                                  icon: const Icon(
+                                    Icons.delete_outline,
+                                    color: Colors.red,
+                                  ),
+                                  onPressed: () async {
+                                    await LearningService.deleteCourse(c.id);
+                                    if (mounted) setState(() {});
+                                  },
+                                ),
+                              ),
+                            ),
+                          )
+                          .toList(),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final session = SessionController.instance.session;
@@ -701,11 +1166,14 @@ class _CompanyShellState extends State<CompanyShell> {
           _buildMyVacanciesTab(),
           _buildApplicantsTab(),
           _buildCreateVacancyTab(),
+          _buildEventsAndCoursesTab(),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
         currentIndex: _selectedTab,
         selectedItemColor: AppTheme.brandPurple,
+        unselectedItemColor: Colors.grey,
         onTap: (i) {
           setState(() {
             _selectedTab = i;
@@ -728,6 +1196,11 @@ class _CompanyShellState extends State<CompanyShell> {
             icon: Icon(Icons.add_box_outlined),
             activeIcon: Icon(Icons.add_box),
             label: 'Post Vacancy',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.event_available_outlined),
+            activeIcon: Icon(Icons.event_available),
+            label: 'Events & Courses',
           ),
         ],
       ),
