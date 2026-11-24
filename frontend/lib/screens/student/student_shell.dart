@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../core/app_theme.dart';
 import '../../state/session_controller.dart';
-import 'placeholder_screens.dart';
+import 'courses_screen.dart';
+import 'events_screen.dart';
 import 'profile_screen.dart';
 import 'vacancy_list_screen.dart';
 

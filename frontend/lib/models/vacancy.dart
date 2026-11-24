@@ -12,7 +12,9 @@ class Vacancy {
   final bool isActive;
   final int applicantsCount;
   final int newApplicantsCount;
+  final int applicationId;
   final String appliedStatus;
+  final String coverLetter;
   final String companyFeedback;
   final List<String> skills;
   final int matchScore;
@@ -33,7 +35,9 @@ class Vacancy {
     this.isActive = true,
     this.applicantsCount = 0,
     this.newApplicantsCount = 0,
+    this.applicationId = 0,
     this.appliedStatus = '',
+    this.coverLetter = '',
     this.companyFeedback = '',
     required this.skills,
     this.matchScore = 0,
@@ -74,7 +78,9 @@ class Vacancy {
       isActive: json['is_active'] is bool ? json['is_active'] as bool : true,
       applicantsCount: (json['applicants_count'] as num?)?.toInt() ?? 0,
       newApplicantsCount: (json['new_applicants_count'] as num?)?.toInt() ?? 0,
+      applicationId: (json['application_id'] as num?)?.toInt() ?? 0,
       appliedStatus: json['applied_status']?.toString() ?? '',
+      coverLetter: json['cover_letter']?.toString() ?? '',
       companyFeedback: json['company_feedback']?.toString() ?? '',
       skills: parseStringList(json['skills']),
       matchScore: (json['match_score'] as num?)?.toInt() ?? 0,

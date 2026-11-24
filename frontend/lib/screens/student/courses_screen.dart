@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../core/app_theme.dart';
 import '../../services/learning_service.dart';
 import '../../services/student_service.dart';
@@ -13,6 +14,7 @@ class CoursesScreen extends StatefulWidget {
 
 class _CoursesScreenState extends State<CoursesScreen> {
   late Future<List<CourseItem>> _futureCourses;
+  final _searchCtrl = TextEditingController();
   String _selectedFilter = 'All';
 
   int get _studentId => SessionController.instance.activeStudentProfileId;
@@ -27,24 +29,67 @@ class _CoursesScreenState extends State<CoursesScreen> {
     _futureCourses = LearningService.fetchCourses(_studentId);
   }
 
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
   Future<void> _changeStatus(CourseItem course, String status) async {
+    if (status == 'Completed') {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Complete Course & Claim Skill?'),
+          content: Text(
+            'Completing "${course.title}" will add ${course.skillName} (${course.level}) to your Profile and automatically boost your Match Score across matching vacancies.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Not Yet'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green.shade700,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Confirm & Claim'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+    }
+
     try {
-      final addedSkill = await LearningService.updateCourseStatus(
+      final result = await LearningService.updateCourseStatus(
         courseId: course.id,
         studentProfileId: _studentId,
         status: status,
       );
       if (status == 'Completed') {
-        await StudentService.fetchSkills(_studentId);
+        final skills = await StudentService.fetchSkills(_studentId);
+        SessionController.instance.setStudentSkills(skills);
       }
       if (!mounted) return;
       setState(_reload);
 
-      final msg = status == 'Completed'
-          ? (addedSkill.isNotEmpty
-              ? 'Course completed! "$addedSkill" added to your Profile skills.'
-              : 'Course marked as Completed!')
-          : 'Enrolled in "${course.title}"!';
+      String msg;
+      if (status == 'Completed') {
+        if (result.addedSkill.isNotEmpty) {
+          final boostNote = result.boostedVacancies > 0
+              ? ' Match Score boosted for ${result.boostedVacancies} open vacancies!'
+              : ' Added to your Profile skills.';
+          msg =
+              'Claimed ${result.addedSkill} (${result.addedLevel})!$boostNote';
+        } else {
+          msg = 'Course marked as Completed!';
+        }
+      } else {
+        msg = 'Enrolled in "${course.title}"!';
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -60,6 +105,17 @@ class _CoursesScreenState extends State<CoursesScreen> {
         SnackBar(content: Text('$e'), backgroundColor: Colors.red),
       );
     }
+  }
+
+  void _copyCourseLink(CourseItem c) {
+    if (c.externalUrl.isEmpty) return;
+    Clipboard.setData(ClipboardData(text: c.externalUrl));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Course link copied: ${c.externalUrl}'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   @override
@@ -87,11 +143,32 @@ class _CoursesScreenState extends State<CoursesScreen> {
             constraints: const BoxConstraints(maxWidth: 760),
             child: Column(
               children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                  child: TextField(
+                    controller: _searchCtrl,
+                    onChanged: (_) => setState(() {}),
+                    decoration: InputDecoration(
+                      hintText:
+                          'Search courses by skill or platform (Go, Docker, Stepik, Coursera)...',
+                      prefixIcon: const Icon(Icons.search),
+                      suffixIcon: _searchCtrl.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, size: 18),
+                              onPressed: () {
+                                _searchCtrl.clear();
+                                setState(() {});
+                              },
+                            )
+                          : null,
+                    ),
+                  ),
+                ),
                 SizedBox(
-                  height: 48,
+                  height: 46,
                   child: ListView(
                     scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+                    padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
                     children: filters.map((f) {
                       return Padding(
                         padding: const EdgeInsets.only(right: 8),
@@ -122,23 +199,35 @@ class _CoursesScreenState extends State<CoursesScreen> {
                         );
                       }
 
+                      final q = _searchCtrl.text.trim().toLowerCase();
                       final all = snapshot.data ?? [];
                       final courses = all.where((c) {
                         if (_selectedFilter == 'Recommended') {
-                          return c.isRecommended &&
-                              c.enrollmentStatus != 'Completed';
+                          if (!(c.isRecommended &&
+                              c.enrollmentStatus != 'Completed')) {
+                            return false;
+                          }
+                        } else if (_selectedFilter == 'My Courses') {
+                          if (c.enrollmentStatus.isEmpty) return false;
                         }
-                        if (_selectedFilter == 'My Courses') {
-                          return c.enrollmentStatus.isNotEmpty;
-                        }
-                        return true;
+                        if (q.isEmpty) return true;
+                        return c.title.toLowerCase().contains(q) ||
+                            c.skillName.toLowerCase().contains(q) ||
+                            c.provider.toLowerCase().contains(q);
                       }).toList();
 
-                      // Рекомендованные поднимаем вверх
                       courses.sort((a, b) {
-                        final aRec = a.isRecommended ? 1 : 0;
-                        final bRec = b.isRecommended ? 1 : 0;
-                        return bRec.compareTo(aRec);
+                        final aRec =
+                            (a.isRecommended && a.enrollmentStatus != 'Completed')
+                                ? 1
+                                : 0;
+                        final bRec =
+                            (b.isRecommended && b.enrollmentStatus != 'Completed')
+                                ? 1
+                                : 0;
+                        if (bRec != aRec) return bRec.compareTo(aRec);
+                        return b.boostedVacanciesCount
+                            .compareTo(a.boostedVacanciesCount);
                       });
 
                       if (courses.isEmpty) {
@@ -225,6 +314,16 @@ class _CoursesScreenState extends State<CoursesScreen> {
                                           ],
                                         ),
                                       ),
+                                      if (c.externalUrl.isNotEmpty)
+                                        IconButton(
+                                          tooltip: 'Copy course URL',
+                                          icon: const Icon(
+                                            Icons.link_rounded,
+                                            size: 20,
+                                            color: AppTheme.brandPurple,
+                                          ),
+                                          onPressed: () => _copyCourseLink(c),
+                                        ),
                                       Chip(
                                         label: Text(
                                           c.isFree ? 'Free' : 'Pro',
@@ -255,9 +354,12 @@ class _CoursesScreenState extends State<CoursesScreen> {
                                     ),
                                   ],
                                   const SizedBox(height: 12),
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    alignment: WrapAlignment.spaceBetween,
+                                    crossAxisAlignment:
+                                        WrapCrossAlignment.center,
                                     children: [
                                       Chip(
                                         avatar: const Icon(
@@ -266,7 +368,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
                                           color: AppTheme.brandPurple,
                                         ),
                                         label: Text(
-                                          'Skill: ${c.skillName}',
+                                          '+ ${c.skillName} (${c.level})',
                                           style: const TextStyle(
                                             fontSize: 12,
                                             fontWeight: FontWeight.w600,
@@ -283,7 +385,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
                                             size: 18,
                                           ),
                                           label: const Text(
-                                            'Completed',
+                                            'Skill Claimed',
                                             style: TextStyle(
                                               color: Colors.green,
                                               fontWeight: FontWeight.bold,

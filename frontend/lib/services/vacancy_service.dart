@@ -29,6 +29,7 @@ class CompanyApplicant {
   final List<LanguageItem> studentLanguages;
   final List<String> matchedSkills;
   final List<String> missingSkills;
+  final List<String> registeredEvents;
 
   const CompanyApplicant({
     required this.applicationId,
@@ -54,6 +55,7 @@ class CompanyApplicant {
     required this.studentLanguages,
     required this.matchedSkills,
     required this.missingSkills,
+    this.registeredEvents = const [],
   });
 
   factory CompanyApplicant.fromJson(Map<String, dynamic> json) {
@@ -104,6 +106,7 @@ class CompanyApplicant {
       studentLanguages: langs,
       matchedSkills: strList(json['matched_skills']),
       missingSkills: strList(json['missing_skills']),
+      registeredEvents: strList(json['registered_events']),
     );
   }
 }
