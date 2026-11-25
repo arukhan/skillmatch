@@ -1,1 +1,27 @@
-{"hosting":{"public":"build/web","ignore":["firebase.json","**/.*","**/node_modules/**"],"rewrites":[{"source":"**","destination":"/index.html"}]},"flutter":{"platforms":{"android":{"default":{"projectId":"skillmatch-kbtu-2026","appId":"1:416854443246:android:905797fb42ad5e19d51fff","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"skillmatch-kbtu-2026","configurations":{"android":"1:416854443246:android:905797fb42ad5e19d51fff","ios":"1:416854443246:ios:7fbf08e663de8a28d51fff","macos":"1:416854443246:ios:7fbf08e663de8a28d51fff","web":"1:416854443246:web:6d29598052870c1bd51fff","windows":"1:416854443246:web:8a9b46257122ed75d51fff"}}}}}}
+{
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ],
+    "headers": [
+      {
+        "source": "**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      }
+    ]
+  }
+}
