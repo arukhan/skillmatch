@@ -6,7 +6,11 @@ import '../../services/student_service.dart';
 import '../../services/vacancy_service.dart';
 import '../../state/session_controller.dart';
 import '../../widgets/skill_chip.dart';
+<<<<<<< HEAD
 import '../admin/admin_analytics_screen.dart';
+=======
+import '../../services/analytics_service.dart';
+>>>>>>> edd3f89 (Add Firebase Analytics and update frontend)
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -205,11 +209,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Navigator.pop(dialogCtx);
 
               final ok = await StudentService.updateProfile(updated);
+
               if (!mounted) return;
+
               if (ok) {
+                await AnalyticsService.profileUpdated();
+
+                if (!mounted) return;
+
                 setState(() {
                   _futureStudent = StudentService.fetchProfile(_studentId);
                 });
+
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('Profile saved to database'),
@@ -217,13 +228,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 );
               }
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-  }
+                          },
+                          child: const Text('Save'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
 
   Future<void> _showAddSkillDialog() async {
     final catalog = await StudentService.fetchSkillsCatalog();
@@ -665,7 +676,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
               onPressed: () async {
                 Navigator.pop(ctx);
                 final ok = await VacancyService.withdrawApplication(app.id);
-                if (ok && mounted) await _loadApplications();
+
+                if (ok) {
+                  await AnalyticsService.applicationWithdrawn(
+                    applicationId: app.id,
+                    vacancyId: app.vacancyId,
+                  );
+                }
+
+                if (ok && mounted) {
+                  await _loadApplications();
+                }
               },
               child: const Text(
                 'Withdraw',
@@ -1270,6 +1291,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           onPressed: () async {
                                             final ok = await VacancyService
                                                 .withdrawApplication(app.id);
+
+                                            if (ok) {
+                                              await AnalyticsService
+                                                  .applicationWithdrawn(
+                                                applicationId: app.id,
+                                                vacancyId: app.vacancyId,
+                                              );
+                                            }
+
                                             if (ok && mounted) {
                                               await _loadApplications();
                                             }

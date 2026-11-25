@@ -6,6 +6,7 @@ import '../../services/student_service.dart';
 import '../../services/vacancy_service.dart';
 import '../../state/session_controller.dart';
 import '../../widgets/match_badge.dart';
+import '../../services/analytics_service.dart';
 
 class VacancyDetailScreen extends StatefulWidget {
   final Vacancy? vacancy;
@@ -23,6 +24,19 @@ class _VacancyDetailScreenState extends State<VacancyDetailScreen> {
 
   int get _studentId => SessionController.instance.activeStudentProfileId;
 
+  bool _vacancyOpenLogged = false;
+
+  void _trackVacancyOpened(Vacancy vacancy) {
+    if (_vacancyOpenLogged) return;
+
+    _vacancyOpenLogged = true;
+
+    AnalyticsService.vacancyOpened(
+      vacancyId: vacancy.id,
+      matchScore: vacancy.matchScore,
+    );
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -33,10 +47,12 @@ class _VacancyDetailScreenState extends State<VacancyDetailScreen> {
     if (widget.vacancy != null) {
       _vacancy = widget.vacancy;
       _isLoading = false;
+      _trackVacancyOpened(_vacancy!);
       _refreshVacancy(_vacancy!.id);
     } else if (args is Vacancy) {
       _vacancy = args;
       _isLoading = false;
+      _trackVacancyOpened(args);
       _refreshVacancy(args.id);
     } else if (args is int) {
       _refreshVacancy(args);
@@ -267,6 +283,10 @@ class _VacancyDetailScreenState extends State<VacancyDetailScreen> {
         studentProfileId: _studentId,
         matchScore: v.matchScore,
         coverLetter: coverCtrl.text.trim(),
+      );
+      await AnalyticsService.applicationSubmitted(
+        vacancyId: v.id,
+        matchScore: v.matchScore,
       );
       await _refreshVacancy(v.id);
       if (!mounted) return;

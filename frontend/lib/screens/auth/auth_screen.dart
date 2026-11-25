@@ -3,6 +3,7 @@ import '../../core/app_theme.dart';
 import '../../models/auth_session.dart';
 import '../../services/auth_service.dart';
 import '../../state/session_controller.dart';
+import '../../services/analytics_service.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -93,6 +94,11 @@ class _AuthScreenState extends State<AuthScreen> {
       }
 
       if (!mounted) return;
+      if (_isLogin) {
+        await AnalyticsService.loginSuccess(
+          role: session.role.apiValue,
+        );
+      }
       SessionController.instance.setSession(session);
       Navigator.pushReplacementNamed(context, '/main');
     } on UserNotFoundException catch (e) {

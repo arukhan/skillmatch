@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../../core/app_theme.dart';
 import '../../services/learning_service.dart';
 import '../../state/session_controller.dart';
+import '../../services/analytics_service.dart';
 
 class EventsScreen extends StatefulWidget {
   const EventsScreen({super.key});
@@ -40,6 +41,12 @@ class _EventsScreenState extends State<EventsScreen> {
         event.id,
         _studentId,
       );
+      if (registered) {
+        await AnalyticsService.eventRegistered(
+          eventId: event.id,
+          eventType: event.eventType,
+        );
+      }
       if (!mounted) return;
       setState(_reload);
       ScaffoldMessenger.of(context).showSnackBar(

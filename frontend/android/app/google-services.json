@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "416854443246",
+    "project_id": "skillmatch-kbtu-2026",
+    "storage_bucket": "skillmatch-kbtu-2026.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:416854443246:android:905797fb42ad5e19d51fff",
+        "android_client_info": {
+          "package_name": "com.example.skillmatch_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD0h8JUTxxBGskv5x8VKJLtdzOTSbv_7Vw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
