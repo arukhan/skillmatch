@@ -1,11 +1,11 @@
 {
-    "name": "skillmatch_app",
-    "short_name": "skillmatch_app",
+    "name": "SkillMatch",
+    "short_name": "SkillMatch",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Career and internship matching platform for students",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
