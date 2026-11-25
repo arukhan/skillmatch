@@ -6,11 +6,8 @@ import '../../services/student_service.dart';
 import '../../services/vacancy_service.dart';
 import '../../state/session_controller.dart';
 import '../../widgets/skill_chip.dart';
-<<<<<<< HEAD
 import '../admin/admin_analytics_screen.dart';
-=======
 import '../../services/analytics_service.dart';
->>>>>>> edd3f89 (Add Firebase Analytics and update frontend)
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
